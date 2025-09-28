@@ -3,6 +3,13 @@
 ## 1.0.0 (2025-09-28)
 
 
+### Features
+
+* première version fonctionnelle du projet ([641abd7](https://github.com/ilias50/gameStack/commit/641abd75e504b33101f1cc9d5f29fda9b545f5aa))
+
+## 1.0.0 (2025-09-28)
+
+
 ### Bug Fixes
 
 * add root pom.xml for multi-module Maven build ([e2ac2cc](https://github.com/ilias50/gameStack/commit/e2ac2cc5258b89f03b2186d74e3aa80ed11b1336))
