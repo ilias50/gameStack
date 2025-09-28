@@ -83,7 +83,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: [java_build, frontend_build]
 
-    # CONDITION CRITIQUE AJOUTÉE : Ne s'exécute pas sur les événements de tag créés par Release Please elle-même
     if: github.event_name != 'push' || !contains(github.event.head_commit.message, 'chore(release):')
 
     permissions:
@@ -98,14 +97,17 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # NOUVELLE LOGIQUE DE TÉLÉCHARGEMENT/DÉPLACEMENT
       - name: Download Java Artifacts
+        id: download
         uses: actions/download-artifact@v4
         with:
           name: java-artifacts
-          path: java-artifacts-to-upload
+          # Télécharge l'artefact dans un sous-dossier standard
+          path: ./downloaded-java-artifacts
 
       - name: Install ZIP Utility
-        run: sudo apt-get install unzip -y
+        run: sudo apt-get install zip -y
 
       - name: Run Release Please
         uses: googleapis/release-please-action@v4
@@ -114,17 +116,20 @@ jobs:
           release-type: simple
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Les étapes suivantes ne changent pas et s'exécutent si une release est créée
-
+      # 2. Archiver les JARs pour l'upload (s'exécute SEULEMENT si une release a été créée)
       - name: Zip Java Artifacts for Release
         id: zip_java
         if: ${{ steps.release.outputs.release_created }}
         run: |
           VERSION_TAG=${{ steps.release.outputs.tag_name }}
           ZIP_NAME="java-artifacts-$VERSION_TAG.zip"
-          zip -j $ZIP_NAME java-artifacts-to-upload/*
-          echo "ZIP_FILE=$ZIP_NAME" >> $GITHUB_OUTPUT
+          
+          # La commande 'zip' doit pointer vers le contenu réel de l'artefact.
+          # On suppose que les JARs sont directement dans 'downloaded-java-artifacts'.
+          # '-j' garantit que l'arborescence est plate dans le zip.
+          zip -j $ZIP_NAME ./downloaded-java-artifacts/* echo "ZIP_FILE=$ZIP_NAME" >> $GITHUB_OUTPUT
 
+      # 3. Upload des JARs en tant qu'Assets de la Release
       - name: Upload Java Artifacts to Release
         if: ${{ steps.release.outputs.release_created }}
         uses: actions/upload-release-asset@v1
@@ -152,24 +157,30 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # Récupération des artefacts zip
       - name: Download Final Release Artifacts (ZIP)
         uses: actions/download-artifact@v4
         with:
+          # On télécharge l'artefact créé au Job 1 (java-artifacts), pas celui de la release asset
           name: java-artifacts
           path: ./temp-zip-download
 
       - name: Extract Java Artifacts
         run: |
-          ZIP_FILE=$(find ./temp-zip-download -name "*.zip")
-          if [ -z "$ZIP_FILE" ]; then
-            echo "::error::Zip file not found. Deployment aborted."
+          # Trouver le JAR correspondant au service, pas le ZIP de la Release
+          SERVICE_NAME=$(echo ${{ matrix.service }} | tr '[:upper:]' '[:lower:]')
+          JAR_FILE=$(find ./temp-zip-download -name "$SERVICE_NAME*.jar")
+          
+          if [ -z "$JAR_FILE" ]; then
+            echo "::error::JAR file for ${SERVICE_NAME} not found. Deployment aborted."
             exit 1
           fi
-          unzip $ZIP_FILE -d extracted-artifacts
           
-          mv extracted-artifacts/* .
+          # Copie le JAR trouvé à la racine pour Docker
+          cp $JAR_FILE ./${SERVICE_NAME}.jar
           
-          rm -rf temp-zip-download extracted-artifacts
+          # Nettoyage
+          rm -rf temp-zip-download
 
       - name: Docker Login to GHCR
         uses: docker/login-action@v3
@@ -184,9 +195,10 @@ jobs:
           VERSION=${{ needs.release_and_versioning.outputs.tag_name }}
           SERVICE_NAME=$(echo ${{ matrix.service }} | tr '[:upper:]' '[:lower:]')
           IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/gamestack-${SERVICE_NAME}"
+          # Le nom du JAR est maintenant standardisé à la racine
           JAR_NAME="${SERVICE_NAME}.jar" 
           
-          echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_OUTPUT
+          echo "IMAGE_NAME=$IMAGE_OUTPUT" >> $GITHUB_OUTPUT
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "JAR_NAME=$JAR_NAME" >> $GITHUB_OUTPUT
 
