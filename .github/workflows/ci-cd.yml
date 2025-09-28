@@ -82,6 +82,10 @@ jobs:
     name: Automated Versioning (Release Please)
     runs-on: ubuntu-latest
     needs: [java_build, frontend_build]
+
+    # CONDITION CRITIQUE AJOUTÉE : Ne s'exécute pas sur les événements de tag créés par Release Please elle-même
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, 'chore(release):')
+
     permissions:
       contents: write
       pull-requests: write
@@ -110,19 +114,17 @@ jobs:
           release-type: simple
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # 2. Archiver les JARs pour l'upload (s'exécute SEULEMENT si une release a été créée)
+      # Les étapes suivantes ne changent pas et s'exécutent si une release est créée
+
       - name: Zip Java Artifacts for Release
         id: zip_java
         if: ${{ steps.release.outputs.release_created }}
         run: |
           VERSION_TAG=${{ steps.release.outputs.tag_name }}
           ZIP_NAME="java-artifacts-$VERSION_TAG.zip"
-          # Compresse le contenu du dossier téléchargé
           zip -j $ZIP_NAME java-artifacts-to-upload/*
-          # COMMANDE CORRIGÉE : maintenant sur sa propre ligne
           echo "ZIP_FILE=$ZIP_NAME" >> $GITHUB_OUTPUT
 
-      # 3. Upload des JARs en tant qu'Assets de la Release
       - name: Upload Java Artifacts to Release
         if: ${{ steps.release.outputs.release_created }}
         uses: actions/upload-release-asset@v1
