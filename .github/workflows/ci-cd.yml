@@ -13,9 +13,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write # Nécessaire pour checkout, release-please et le tagging
-  pull-requests: write # Nécessaire pour release-please
-  packages: write # Nécessaire pour le push des images Docker vers GHCR
+  contents: write
+  pull-requests: write
+  packages: write
 
 # Définition des jobs (tâches) à exécuter
 jobs:
@@ -81,20 +81,19 @@ jobs:
   release_and_versioning:
     name: Automated Versioning (Release Please)
     runs-on: ubuntu-latest
-    # Nécessite que tous les builds aient réussi
     needs: [java_build, frontend_build]
-
-    # Ce job n'a pas besoin de permissions spéciales (pas de 'actions: write') car le déploiement est interne.
-    # On force l'utilisation du GITHUB_TOKEN pour la création des tags/releases.
     permissions:
       contents: write
       pull-requests: write
+
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 1. Télécharger les artefacts générés par les jobs précédents
       - name: Download Java Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -102,50 +101,48 @@ jobs:
           path: java-artifacts-to-upload
 
       - name: Install ZIP Utility
-        run: sudo apt-get install zip -y
+        run: sudo apt-get install unzip -y
 
       - name: Run Release Please
         uses: googleapis/release-please-action@v4
         id: release
         with:
           release-type: simple
-          # Passage explicite du jeton (non bloquant ici)
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Le reste de ce job ne s'exécute que si une NOUVELLE release a été créée (nouvelle version)
-      if: ${{ steps.release.outputs.release_created }}
-        
-        # 2. Archiver les JARs pour l'upload
-        - name: Zip Java Artifacts for Release
-          id: zip_java
-          run: |
-            VERSION_TAG=${{ steps.release.outputs.tag_name }}
-            ZIP_NAME="java-artifacts-$VERSION_TAG.zip"
-            # Compresse le contenu du dossier téléchargé
-            zip -j $ZIP_NAME java-artifacts-to-upload/* echo "ZIP_FILE=$ZIP_NAME" >> $GITHUB_OUTPUT
+      # CORRECTION APPLIQUÉE ICI : 'if:' est maintenant dans la step, pas en dehors.
 
-        # 3. Upload des JARs en tant qu'Assets de la Release
-        - name: Upload Java Artifacts to Release
-          uses: actions/upload-release-asset@v1
-          with:
-            upload_url: ${{ steps.release.outputs.upload_url }}
-            asset_path: ${{ steps.zip_java.outputs.ZIP_FILE }}
-            asset_name: ${{ steps.zip_java.outputs.ZIP_FILE }}
-            asset_content_type: application/zip
-            token: ${{ secrets.GITHUB_TOKEN }}
+      # 2. Archiver les JARs pour l'upload (s'exécute SEULEMENT si une release a été créée)
+      - name: Zip Java Artifacts for Release
+        id: zip_java
+        if: ${{ steps.release.outputs.release_created }}
+        run: |
+          VERSION_TAG=${{ steps.release.outputs.tag_name }}
+          ZIP_NAME="java-artifacts-$VERSION_TAG.zip"
+          # Compresse le contenu du dossier téléchargé
+          zip -j $ZIP_NAME java-artifacts-to-upload/* echo "ZIP_FILE=$ZIP_NAME" >> $GITHUB_OUTPUT
+
+      # 3. Upload des JARs en tant qu'Assets de la Release
+      - name: Upload Java Artifacts to Release
+        if: ${{ steps.release.outputs.release_created }}
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.release.outputs.upload_url }}
+          asset_path: ${{ steps.zip_java.outputs.ZIP_FILE }}
+          asset_name: ${{ steps.zip_java.outputs.ZIP_FILE }}
+          asset_content_type: application/zip
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   # -----------------------------------------------------------
   # JOB 4: Déploiement Docker (Dépend de la Release)
-  # C'est maintenant une dépendance interne et non un nouveau workflow
   # -----------------------------------------------------------
   deploy_java_services:
     name: Docker Deploy to GHCR
     runs-on: ubuntu-latest
-    # Le déploiement se fait UNIQUEMENT si la Release a été créée
+    # Le déploiement se fait UNIQUEMENT si la Release a été créée dans le job précédent
     needs: [release_and_versioning]
     if: ${{ needs.release_and_versioning.outputs.release_created }}
 
-    # Stratégie de déploiement des services
     strategy:
       matrix:
         service: [api-gateway, auth-service, collection-service, games-service]
@@ -154,19 +151,21 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # --- ÉTAPE CRUCIALE : TÉLÉCHARGEMENT DE L'ARTIFACT ZIP (qui contient les JARs) ---
-      # Puisque nous sommes dans le même run (même si jobs différents), on télécharge l'artifact
-      # temporaire du Job 3, pas l'asset de release.
+      # Récupération des artefacts zip
       - name: Download Final Release Artifacts (ZIP)
         uses: actions/download-artifact@v4
         with:
-          name: ${{ needs.release_and_versioning.outputs.zip_file }}
+          name: java-artifacts
           path: ./temp-zip-download
 
       - name: Extract Java Artifacts
         run: |
-          # Le nom du fichier est celui que le job de release a généré
-          ZIP_FILE=$(find ./temp-zip-download -name "java-artifacts-v*.zip")
+          ZIP_FILE=$(find ./temp-zip-download -name "*.zip")
+          # On vérifie si un fichier zip a été trouvé, sinon on s'arrête
+          if [ -z "$ZIP_FILE" ]; then
+            echo "::error::Zip file not found. Deployment aborted."
+            exit 1
+          fi
           unzip $ZIP_FILE -d extracted-artifacts
           
           # Déplace les JARs à la racine pour Docker
@@ -186,7 +185,6 @@ jobs:
       - name: Set Image Metadata and JAR Name
         id: meta
         run: |
-          # Récupère le tag directement depuis l'output du job de release
           VERSION=${{ needs.release_and_versioning.outputs.tag_name }}
           SERVICE_NAME=$(echo ${{ matrix.service }} | tr '[:upper:]' '[:lower:]')
           IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/gamestack-${SERVICE_NAME}"
