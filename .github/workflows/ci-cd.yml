@@ -97,17 +97,15 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # NOUVELLE LOGIQUE DE TÉLÉCHARGEMENT/DÉPLACEMENT
       - name: Download Java Artifacts
         id: download
         uses: actions/download-artifact@v4
         with:
           name: java-artifacts
-          # Télécharge l'artefact dans un sous-dossier standard
           path: ./downloaded-java-artifacts
 
       - name: Install ZIP Utility
-        run: sudo apt-get install zip -y
+        run: sudo apt-get install unzip -y
 
       - name: Run Release Please
         uses: googleapis/release-please-action@v4
@@ -124,10 +122,9 @@ jobs:
           VERSION_TAG=${{ steps.release.outputs.tag_name }}
           ZIP_NAME="java-artifacts-$VERSION_TAG.zip"
           
-          # La commande 'zip' doit pointer vers le contenu réel de l'artefact.
-          # On suppose que les JARs sont directement dans 'downloaded-java-artifacts'.
-          # '-j' garantit que l'arborescence est plate dans le zip.
-          zip -j $ZIP_NAME ./downloaded-java-artifacts/* echo "ZIP_FILE=$ZIP_NAME" >> $GITHUB_OUTPUT
+          # CORRECTION APPLIQUÉE : L'instruction 'echo' est maintenant correctement placée après le zip
+          zip -j $ZIP_NAME ./downloaded-java-artifacts/*
+          echo "ZIP_FILE=$ZIP_NAME" >> $GITHUB_OUTPUT
 
       # 3. Upload des JARs en tant qu'Assets de la Release
       - name: Upload Java Artifacts to Release
@@ -157,17 +154,14 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Récupération des artefacts zip
       - name: Download Final Release Artifacts (ZIP)
         uses: actions/download-artifact@v4
         with:
-          # On télécharge l'artefact créé au Job 1 (java-artifacts), pas celui de la release asset
           name: java-artifacts
           path: ./temp-zip-download
 
       - name: Extract Java Artifacts
         run: |
-          # Trouver le JAR correspondant au service, pas le ZIP de la Release
           SERVICE_NAME=$(echo ${{ matrix.service }} | tr '[:upper:]' '[:lower:]')
           JAR_FILE=$(find ./temp-zip-download -name "$SERVICE_NAME*.jar")
           
@@ -176,10 +170,8 @@ jobs:
             exit 1
           fi
           
-          # Copie le JAR trouvé à la racine pour Docker
           cp $JAR_FILE ./${SERVICE_NAME}.jar
           
-          # Nettoyage
           rm -rf temp-zip-download
 
       - name: Docker Login to GHCR
@@ -195,10 +187,9 @@ jobs:
           VERSION=${{ needs.release_and_versioning.outputs.tag_name }}
           SERVICE_NAME=$(echo ${{ matrix.service }} | tr '[:upper:]' '[:lower:]')
           IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/gamestack-${SERVICE_NAME}"
-          # Le nom du JAR est maintenant standardisé à la racine
           JAR_NAME="${SERVICE_NAME}.jar" 
           
-          echo "IMAGE_NAME=$IMAGE_OUTPUT" >> $GITHUB_OUTPUT
+          echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_OUTPUT
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "JAR_NAME=$JAR_NAME" >> $GITHUB_OUTPUT
 
