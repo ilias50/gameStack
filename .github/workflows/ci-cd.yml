@@ -42,6 +42,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: java-artifacts
+          # IMPORTANT : Upload de tous les JARs nécessaires
           path: |
             **/target/*.jar
             !**/target/*-sources.jar
@@ -97,29 +98,24 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # CORRECTION ARTEFACTS : On télécharge l'artefact dans un dossier temporaire
+      # Étape 1: Télécharger l'artefact dans un dossier temporaire
       - name: Download Java Artifacts
         uses: actions/download-artifact@v4
         with:
           name: java-artifacts
-          path: ./.download-tmp
+          path: ./.zip-content # Nouveau chemin temporaire et propre
 
-      - name: Verify Downloaded Artifacts and Prepare Zip
-        id: prepare_zip
+      # Étape 2: Vérifier si le dossier contient des JARs
+      - name: Verify JARs presence
         run: |
-          # Cherche tous les JARs téléchargés, peu importe le sous-dossier créé par download-artifact
-          JAR_FILES=$(find ./.download-tmp -name "*.jar")
-          
-          if [ -z "$JAR_FILES" ]; then
-            echo "::error::No JAR files found in downloaded artifact. Check Job 1 Upload path."
+          # Chercher au moins un JAR dans n'importe quel sous-dossier
+          if [ -z "$(find ./.zip-content -name "*.jar" -print -quit)" ]; then
+            echo "::error::No JAR files found in ./.zip-content. Deployment aborted."
+            # On affiche le contenu pour aider au débogage si ça échoue
+            ls -R ./.zip-content
             exit 1
           fi
-          
-          # Enregistre la liste des fichiers trouvés
-          echo "JAR_FILES_TO_ZIP=$JAR_FILES" >> $GITHUB_OUTPUT
-          
-          echo "Found the following JARs:"
-          echo "$JAR_FILES"
+          echo "JAR files confirmed present."
 
       - name: Install ZIP Utility
         run: sudo apt-get install zip -y
@@ -131,7 +127,7 @@ jobs:
           release-type: simple
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # 2. Archiver les JARs pour l'upload (s'exécute SEULEMENT si une release a été créée)
+      # 3. Archiver le dossier (s'exécute SEULEMENT si une release a été créée)
       - name: Zip Java Artifacts for Release
         id: zip_java
         if: ${{ steps.release.outputs.release_created }}
@@ -139,11 +135,16 @@ jobs:
           VERSION_TAG=${{ steps.release.outputs.tag_name }}
           ZIP_NAME="java-artifacts-$VERSION_TAG.zip"
           
-          # Utilise la variable shell contenant la liste des JARs trouvés
-          zip -j $ZIP_NAME ${{ steps.prepare_zip.outputs.JAR_FILES_TO_ZIP }}
+          # Utilisation de l'option '-r' pour inclure l'arborescence,
+          # mais on entre dans le dossier d'artefact pour zipper son contenu
+          # Le chemin est maintenant ./zip-content/le_vrai_contenu
+          # L'option -j est supprimée car elle supprime l'arborescence
+          
+          # On se positionne à la racine du workspace et on zip le dossier temporaire
+          zip -r $ZIP_NAME ./.zip-content
           echo "ZIP_FILE=$ZIP_NAME" >> $GITHUB_OUTPUT
 
-      # 3. Upload des JARs en tant qu'Assets de la Release
+      # 4. Upload des JARs en tant qu'Assets de la Release
       - name: Upload Java Artifacts to Release
         if: ${{ steps.release.outputs.release_created }}
         uses: actions/upload-release-asset@v1
@@ -171,7 +172,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # On télécharge l'artefact créé au Job 1, pour chaque service
+      # Téléchargement de l'artefact (non zippé) depuis le Job 1
       - name: Download Final Release Artifacts (JARs)
         uses: actions/download-artifact@v4
         with:
@@ -182,16 +183,16 @@ jobs:
         run: |
           SERVICE_NAME=$(echo ${{ matrix.service }} | tr '[:upper:]' '[:lower:]')
           
-          # On cherche le JAR avec la convention de nom de Maven (ex: auth-service-1.0.1.jar)
-          JAR_FILE=$(find ./downloaded-jars -name "$SERVICE_NAME*.jar")
+          # Cherche le JAR dans le dossier téléchargé (n'importe quel sous-dossier)
+          JAR_FILE=$(find ./downloaded-jars -name "$SERVICE_NAME*.jar" | head -n 1)
           
           if [ -z "$JAR_FILE" ]; then
-            echo "::error::JAR file for ${SERVICE_NAME} not found. Deployment aborted."
+            echo "::error::JAR file for ${SERVICE_NAME} not found in downloaded artifact."
             exit 1
           fi
           
           # Copie le JAR trouvé à la racine pour Docker
-          cp $JAR_FILE ./${SERVICE_NAME}.jar
+          cp "$JAR_FILE" ./${SERVICE_NAME}.jar
           
           rm -rf downloaded-jars
 
