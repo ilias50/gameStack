@@ -98,7 +98,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # CORRECTION APPLIQUÉE : Download dans un chemin simple et affichage du contenu
       - name: Download Java Artifacts
         id: download
         uses: actions/download-artifact@v4
@@ -110,7 +109,6 @@ jobs:
         run: |
           echo "Listing contents of java-artifacts directory:"
           ls -R java-artifacts/
-          # Si cette commande ne liste pas les JARs, l'upload initial a raté ou le chemin est faux.
 
       - name: Install ZIP Utility
         run: sudo apt-get install unzip -y
@@ -130,8 +128,9 @@ jobs:
           VERSION_TAG=${{ steps.release.outputs.tag_name }}
           ZIP_NAME="java-artifacts-$VERSION_TAG.zip"
           
-          # La commande pointe directement vers le contenu du dossier téléchargé
-          zip -j $ZIP_NAME ./java-artifacts/* echo "ZIP_FILE=$ZIP_NAME" >> $GITHUB_OUTPUT
+          # CORRECTION DÉFINITIVE : Les deux commandes sont sur des lignes séparées
+          zip -j $ZIP_NAME ./java-artifacts/*
+          echo "ZIP_FILE=$ZIP_NAME" >> $GITHUB_OUTPUT
 
       # 3. Upload des JARs en tant qu'Assets de la Release
       - name: Upload Java Artifacts to Release
@@ -161,17 +160,15 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # On télécharge l'artefact créé au Job 1, pour chaque service
       - name: Download Final Release Artifacts (JARs)
         uses: actions/download-artifact@v4
         with:
           name: java-artifacts
-          path: ./downloaded-jars # Chemin simple
+          path: ./downloaded-jars
 
       - name: Extract Java Artifacts
         run: |
           SERVICE_NAME=$(echo ${{ matrix.service }} | tr '[:upper:]' '[:lower:]')
-          # On cherche le JAR dans le dossier téléchargé
           JAR_FILE=$(find ./downloaded-jars -name "$SERVICE_NAME*.jar")
           
           if [ -z "$JAR_FILE" ]; then
@@ -179,7 +176,6 @@ jobs:
             exit 1
           fi
           
-          # Copie le JAR trouvé à la racine pour Docker
           cp $JAR_FILE ./${SERVICE_NAME}.jar
           
           rm -rf downloaded-jars
