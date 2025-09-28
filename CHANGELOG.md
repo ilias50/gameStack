@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/ilias50/gameStack/compare/v1.0.1...v1.0.2) (2025-09-28)
+
+
+### Bug Fixes
+
+* debug workflow change releae ([5aa1212](https://github.com/ilias50/gameStack/commit/5aa12128c63d1b6a1d08c8838544131a07987169))
+
 ## [1.0.1](https://github.com/ilias50/gameStack/compare/v1.0.0...v1.0.1) (2025-09-28)
 
 
