@@ -1,176 +1,114 @@
 # Nom du workflow qui apparaîtra dans l'interface GitHub Actions
-name: CI Multi-Service (Build & Test)
+name: 2. Docker Deploy to GHCR
 
-# Déclenche ce workflow sur chaque push et pull request sur la branche 'main'
+# Déclenche ce workflow uniquement lorsqu'une nouvelle Release est publiée sur GitHub
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
-  # Permet d'exécuter ce workflow manuellement depuis l'interface Actions
-  workflow_dispatch:
+  release:
+    types: [published]
+
 permissions:
-  contents: write # Permet d'écrire des fichiers (nécessaire pour la release)
-  pull-requests: write # Permet de créer et modifier des Pull Requests (critique pour release-please)
+  # Lecture obligatoire pour accéder aux Assets de la Release
+  contents: read
+  # Nécessaire pour pousser les images sur le GitHub Container Registry (GHCR)
+  packages: write
 
-# Définition des jobs (tâches) à exécuter
 jobs:
-  # -----------------------------------------------------------
-  # JOB 1: Build et Tests Unitaires pour les services Java (Maven)
-  # -----------------------------------------------------------
-  java_build:
-    name: Build Services Java (Maven)
+  # Déploie les services Java (API Gateway, Auth, Collection, Games)
+  deploy_java_services:
     runs-on: ubuntu-latest
 
-    env:
-      JAVA_VERSION: '21'
+    strategy:
+      matrix:
+        service: [api-gateway, auth-service, collection-service, games-service]
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Java ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
+      # --- ÉTAPE CRUCIALE : TÉLÉCHARGEMENT D'UN ASSET DE RELEASE ---
+      - name: Download Java Artifacts (ZIP)
+        id: download_java
+        uses: actions/github-script@v7
         with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
-          cache: 'maven'
+          script: |
+            
+            const releaseId = context.payload.release.id;
+            const releaseAssets = context.payload.release.assets;
+            const assetName = `java-artifacts-${context.payload.release.tag_name}.zip`;
+            
+          
+            const asset = releaseAssets.find(asset => asset.name === assetName);
 
-      - name: Run Maven Build and Unit Tests
-        run: mvn clean install
+            if (!asset) {
+              core.setFailed(`Asset ${assetName} not found in release assets.`);
+              return;
+            }
 
-      - name: Upload Build Artifacts (JARs)
-        uses: actions/upload-artifact@v4
-        with:
-          name: java-artifacts
-          path: |
-            **/target/*.jar
-            !**/target/*-sources.jar
-            !**/target/*-javadoc.jar
+            
+            const downloadUrl = asset.url;
+            const response = await github.request({
+              method: 'GET',
+              url: downloadUrl,
+              headers: {
+                Accept: 'application/octet-stream'
+              }
+            });
 
-  # -----------------------------------------------------------
-  # JOB 2: Build du Frontend (Vue/Vite)
-  # -----------------------------------------------------------
-  frontend_build:
-    name: Build Frontend (Node.js)
-    runs-on: ubuntu-latest
-    needs: java_build
+            
+            const fs = require('fs');
+            fs.writeFileSync(assetName, Buffer.from(response.data));
+            
+            core.setOutput('asset_file', assetName);
 
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install Dependencies
-        run: npm install
-        working-directory: ./frontend
-
-      - name: Run Frontend Build (Vite)
-        run: npm run build
-        working-directory: ./frontend
-
-      - name: Upload Frontend Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: ./frontend/dist
-
-  # -----------------------------------------------------------
-  # JOB 3: Versioning et Création de Release (Release Please)
-  # -----------------------------------------------------------
-  release_and_versioning:
-    name: Automated Versioning (Release Please)
-    runs-on: ubuntu-latest
-
-    # Ce job DOIT attendre que TOUS les builds et tests réussissent
-    needs: [java_build, frontend_build]
-
-    # Condition cruciale: Le versioning ne se fait que sur les pushes vers 'main'
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    # CORRECTION CRITIQUE : Donne au GITHUB_TOKEN la permission de déclencher d'autres workflows
-    permissions:
-      contents: write
-      pull-requests: write
-      workflows: write
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      # Installer l'utilitaire zip pour archiver les artefacts
-      - name: Install Zip Utility
-        run: sudo apt-get install zip -y
-
-      # 1. TÉLÉCHARGER les JARs créés par le job java_build
-      - name: Download Java Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: java-artifacts
-          path: ./java-artifacts-to-upload
-
-      # 2. TÉLÉCHARGER le Frontend créé par le job frontend_build
-      - name: Download Frontend Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-dist
-          path: ./frontend-artifacts-to-upload
-
-      # 3. Exécuter Release Please
-      # Crée le tag et met à jour le CHANGELOG/PR (utilise le GITHUB_TOKEN par défaut)
-      - name: Run Release Please
-        uses: googleapis/release-please-action@v4
-        id: release
-        with:
-          release-type: simple
-
-      # Les étapes suivantes ne s'exécutent que si une NOUVELLE RELEASE est créée (uniquement après un merge de PR de release)
-
-      # 4. ZIP les artefacts (un seul fichier pour l'upload)
-      - name: Zip Java Artifacts
-        if: ${{ steps.release.outputs.release_created }}
-        run: zip -r ./java-artifacts-to-upload/java-artifacts.zip ./java-artifacts-to-upload/
-
-      - name: Zip Frontend Artifact
-        if: ${{ steps.release.outputs.release_created }}
-        run: zip -r ./frontend-artifacts-to-upload/frontend-dist.zip ./frontend-artifacts-to-upload/
-
-      # 5. UPLOAD JAVA (Asset de Release)
-      # On utilise l'URL fournie par Release Please
-      - name: Upload Java Artifacts to Release
-        if: ${{ steps.release.outputs.release_created }}
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.release.outputs.upload_url }}
-          asset_path: ./java-artifacts-to-upload/java-artifacts.zip
-          asset_name: java-artifacts-${{ steps.release.outputs.tag_name }}.zip
-          asset_content_type: application/zip
-
-      # 6. UPLOAD FRONTEND (Asset de Release)
-      - name: Upload Frontend Artifact to Release
-        if: ${{ steps.release.outputs.release_created }}
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.release.outputs.upload_url }}
-          asset_path: ./frontend-artifacts-to-upload/frontend-dist.zip
-          asset_name: frontend-dist-${{ steps.release.outputs.tag_name }}.zip
-          asset_content_type: application/zip
-
-      - name: Notify on New Release
-        if: ${{ steps.release.outputs.release_created }}
-        env:
-          TAG_VERSION: ${{ steps.release.outputs.tag_name }}
+      - name: Extract Java Artifacts
         run: |
-          echo "Nouvelle release créée : $TAG_VERSION"
+          # Installation de unzip (au cas où)
+          sudo apt-get install unzip -y
+          
+          # Le fichier ZIP est téléchargé dans le répertoire courant
+          unzip ${{ steps.download_java.outputs.asset_file }}
+          
+          # Les fichiers sont extraits dans le dossier 'java-artifacts-to-upload'. 
+          # On déplace les JARs à la racine pour Docker
+          mv java-artifacts-to-upload/* .
+          
+          # Nettoyage
+          rm -rf java-artifacts-to-upload/
+
+      # --- Configuration Docker/GHCR ---
+      - name: Docker Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set Image Metadata and JAR Name
+        id: meta
+        run: |
+          VERSION=${{ github.event.release.tag_name }}
+          SERVICE_NAME=$(echo ${{ matrix.service }} | tr '[:upper:]' '[:lower:]')
+          IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/gamestack-${SERVICE_NAME}"
+          # Le nom du JAR doit correspondre à celui que Maven a généré (ex: api-gateway.jar)
+          JAR_NAME="${SERVICE_NAME}.jar" 
+          
+          echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "JAR_NAME=$JAR_NAME" >> $GITHUB_OUTPUT
+
+      - name: Build and Push Docker Image for ${{ matrix.service }}
+        uses: docker/build-push-action@v5
+        with:
+          # Le contexte est la racine '.' où le JAR est maintenant extrait
+          context: .
+          file: ./${{ matrix.service }}/Dockerfile
+          push: true
+          build-args: |
+            JAR_FILE=${{ steps.meta.outputs.JAR_NAME }}
+
+          tags: |
+            ${{ steps.meta.outputs.IMAGE_NAME }}:${{ steps.meta.outputs.VERSION }}
+            ${{ steps.meta.outputs.IMAGE_NAME }}:latest
+
+# NOTE: Il faudrait un job similaire pour le frontend (s'il est déployé via Docker)
+# ou un autre job pour un déploiement S3/Cloudflare.
