@@ -110,8 +110,6 @@ jobs:
           release-type: simple
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # CORRECTION APPLIQUÉE ICI : 'if:' est maintenant dans la step, pas en dehors.
-
       # 2. Archiver les JARs pour l'upload (s'exécute SEULEMENT si une release a été créée)
       - name: Zip Java Artifacts for Release
         id: zip_java
@@ -120,7 +118,9 @@ jobs:
           VERSION_TAG=${{ steps.release.outputs.tag_name }}
           ZIP_NAME="java-artifacts-$VERSION_TAG.zip"
           # Compresse le contenu du dossier téléchargé
-          zip -j $ZIP_NAME java-artifacts-to-upload/* echo "ZIP_FILE=$ZIP_NAME" >> $GITHUB_OUTPUT
+          zip -j $ZIP_NAME java-artifacts-to-upload/*
+          # COMMANDE CORRIGÉE : maintenant sur sa propre ligne
+          echo "ZIP_FILE=$ZIP_NAME" >> $GITHUB_OUTPUT
 
       # 3. Upload des JARs en tant qu'Assets de la Release
       - name: Upload Java Artifacts to Release
@@ -139,7 +139,6 @@ jobs:
   deploy_java_services:
     name: Docker Deploy to GHCR
     runs-on: ubuntu-latest
-    # Le déploiement se fait UNIQUEMENT si la Release a été créée dans le job précédent
     needs: [release_and_versioning]
     if: ${{ needs.release_and_versioning.outputs.release_created }}
 
@@ -151,7 +150,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Récupération des artefacts zip
       - name: Download Final Release Artifacts (ZIP)
         uses: actions/download-artifact@v4
         with:
@@ -161,20 +159,16 @@ jobs:
       - name: Extract Java Artifacts
         run: |
           ZIP_FILE=$(find ./temp-zip-download -name "*.zip")
-          # On vérifie si un fichier zip a été trouvé, sinon on s'arrête
           if [ -z "$ZIP_FILE" ]; then
             echo "::error::Zip file not found. Deployment aborted."
             exit 1
           fi
           unzip $ZIP_FILE -d extracted-artifacts
           
-          # Déplace les JARs à la racine pour Docker
           mv extracted-artifacts/* .
           
-          # Nettoyage
           rm -rf temp-zip-download extracted-artifacts
 
-      # --- Configuration Docker/GHCR ---
       - name: Docker Login to GHCR
         uses: docker/login-action@v3
         with:
