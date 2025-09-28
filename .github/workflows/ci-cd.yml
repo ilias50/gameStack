@@ -98,20 +98,18 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Étape 1: Télécharger l'artefact dans un dossier temporaire
       - name: Download Java Artifacts
         uses: actions/download-artifact@v4
         with:
           name: java-artifacts
-          path: ./.zip-content # Nouveau chemin temporaire et propre
+          path: ./.zip-content # Dossier où se trouvent les JARs téléchargés
 
-      # Étape 2: Vérifier si le dossier contient des JARs
       - name: Verify JARs presence
         run: |
           # Chercher au moins un JAR dans n'importe quel sous-dossier
           if [ -z "$(find ./.zip-content -name "*.jar" -print -quit)" ]; then
             echo "::error::No JAR files found in ./.zip-content. Deployment aborted."
-            # On affiche le contenu pour aider au débogage si ça échoue
+            # Affichage pour débogage
             ls -R ./.zip-content
             exit 1
           fi
@@ -127,7 +125,7 @@ jobs:
           release-type: simple
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # 3. Archiver le dossier (s'exécute SEULEMENT si une release a été créée)
+      # 2. Archiver le dossier (s'exécute SEULEMENT si une release a été créée)
       - name: Zip Java Artifacts for Release
         id: zip_java
         if: ${{ steps.release.outputs.release_created }}
@@ -135,25 +133,21 @@ jobs:
           VERSION_TAG=${{ steps.release.outputs.tag_name }}
           ZIP_NAME="java-artifacts-$VERSION_TAG.zip"
           
-          # Utilisation de l'option '-r' pour inclure l'arborescence,
-          # mais on entre dans le dossier d'artefact pour zipper son contenu
-          # Le chemin est maintenant ./zip-content/le_vrai_contenu
-          # L'option -j est supprimée car elle supprime l'arborescence
-          
-          # On se positionne à la racine du workspace et on zip le dossier temporaire
+          # Zippe le contenu du dossier téléchargé, conservant l'arborescence (pour le cas où find a raté)
           zip -r $ZIP_NAME ./.zip-content
           echo "ZIP_FILE=$ZIP_NAME" >> $GITHUB_OUTPUT
 
-      # 4. Upload des JARs en tant qu'Assets de la Release
+      # 3. Upload des JARs en tant qu'Assets de la Release
       - name: Upload Java Artifacts to Release
         if: ${{ steps.release.outputs.release_created }}
         uses: actions/upload-release-asset@v1
         with:
+          # CORRECTION CRITIQUE : Utilisation de l'input `repo_token` au lieu du `token` non reconnu
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
           upload_url: ${{ steps.release.outputs.upload_url }}
           asset_path: ${{ steps.zip_java.outputs.ZIP_FILE }}
           asset_name: ${{ steps.zip_java.outputs.ZIP_FILE }}
           asset_content_type: application/zip
-          token: ${{ secrets.GITHUB_TOKEN }}
 
   # -----------------------------------------------------------
   # JOB 4: Déploiement Docker (Dépend de la Release)
@@ -172,7 +166,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Téléchargement de l'artefact (non zippé) depuis le Job 1
       - name: Download Final Release Artifacts (JARs)
         uses: actions/download-artifact@v4
         with:
