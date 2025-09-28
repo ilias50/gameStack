@@ -96,8 +96,7 @@ jobs:
     # Condition cruciale: Le versioning ne se fait que sur les pushes vers 'main'
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
-    # CORRECTION CRITIQUE : Donne au GITHUB_TOKEN la permission de déclencher d'autres workflows
-    # Nous utilisons 'actions: write' pour autoriser le déclenchement de workflows en chaîne.
+    # CORRECTION CRITIQUE (1) : Donne au GITHUB_TOKEN la permission de déclencher d'autres workflows
     permissions:
       contents: write
       pull-requests: write
@@ -126,12 +125,13 @@ jobs:
           path: ./frontend-artifacts-to-upload
 
       # 3. Exécuter Release Please
-      # Crée le tag et met à jour le CHANGELOG/PR (utilise le GITHUB_TOKEN par défaut)
+      # CORRECTION CRITIQUE (2) : Passer explicitement le GITHUB_TOKEN à l'action
       - name: Run Release Please
         uses: googleapis/release-please-action@v4
         id: release
         with:
           release-type: simple
+          token: ${{ secrets.GITHUB_TOKEN }} # Assure l'autorisation complète de déclenchement
 
       # Les étapes suivantes ne s'exécutent que si une NOUVELLE RELEASE est créée (uniquement après un merge de PR de release)
 
