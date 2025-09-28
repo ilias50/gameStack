@@ -97,10 +97,11 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     # CORRECTION CRITIQUE : Donne au GITHUB_TOKEN la permission de déclencher d'autres workflows
+    # Nous utilisons 'actions: write' pour autoriser le déclenchement de workflows en chaîne.
     permissions:
       contents: write
       pull-requests: write
-      workflows: write
+      actions: write
 
     steps:
       - name: Checkout Code
