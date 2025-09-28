@@ -1,12 +1,13 @@
+# Nom du workflow qui apparaîtra dans l'interface GitHub Actions
 name: 2. Docker Deploy to GHCR
 
-# Ce workflow s'exécute uniquement lorsqu'une nouvelle Release est publiée sur GitHub
+# Déclenche ce workflow uniquement lorsqu'une nouvelle Release est publiée sur GitHub
 on:
   release:
     types: [published]
-  workflow_dispatch:
 
 permissions:
+  # Lecture obligatoire pour accéder aux Assets de la Release
   contents: read
   # Nécessaire pour pousser les images sur le GitHub Container Registry (GHCR)
   packages: write
@@ -16,7 +17,6 @@ jobs:
   deploy_java_services:
     runs-on: ubuntu-latest
 
-    # Stratégie pour itérer sur tous vos microservices Java
     strategy:
       matrix:
         service: [api-gateway, auth-service, collection-service, games-service]
@@ -25,12 +25,55 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Download Build Artifacts (JARs)
-        # Télécharge les JARs créés par le workflow CI précédent (ci.yml)
-        uses: actions/download-artifact@v4
+      # --- ÉTAPE CRUCIALE : TÉLÉCHARGEMENT D'UN ASSET DE RELEASE ---
+      - name: Download Java Artifacts (ZIP)
+        id: download_java
+        uses: actions/github-script@v7
         with:
-          name: java-artifacts
-          path: ./
+          script: |
+            
+            const releaseId = context.payload.release.id;
+            const releaseAssets = context.payload.release.assets;
+            const assetName = `java-artifacts-${context.payload.release.tag_name}.zip`;
+            
+          
+            const asset = releaseAssets.find(asset => asset.name === assetName);
+
+            if (!asset) {
+              core.setFailed(`Asset ${assetName} not found in release assets.`);
+              return;
+            }
+
+            
+            const downloadUrl = asset.url;
+            const response = await github.request({
+              method: 'GET',
+              url: downloadUrl,
+              headers: {
+                Accept: 'application/octet-stream'
+              }
+            });
+
+            
+            const fs = require('fs');
+            fs.writeFileSync(assetName, Buffer.from(response.data));
+            
+            core.setOutput('asset_file', assetName);
+
+      - name: Extract Java Artifacts
+        run: |
+          # Installation de unzip (au cas où)
+          sudo apt-get install unzip -y
+          
+          # Le fichier ZIP est téléchargé dans le répertoire courant
+          unzip ${{ steps.download_java.outputs.asset_file }}
+          
+          # Les fichiers sont extraits dans le dossier 'java-artifacts-to-upload'. 
+          # On déplace les JARs à la racine pour Docker
+          mv java-artifacts-to-upload/* .
+          
+          # Nettoyage
+          rm -rf java-artifacts-to-upload/
 
       # --- Configuration Docker/GHCR ---
       - name: Docker Login to GHCR
@@ -43,29 +86,23 @@ jobs:
       - name: Set Image Metadata and JAR Name
         id: meta
         run: |
-          # Récupère le tag de version (ex: v1.0.0)
           VERSION=${{ github.event.release.tag_name }}
-          # Nettoie le nom du service pour le nom de l'image Docker (gamestack-auth-service)
           SERVICE_NAME=$(echo ${{ matrix.service }} | tr '[:upper:]' '[:lower:]')
-          
-          # Définit le nom complet de l'image pour le GHCR
           IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/gamestack-${SERVICE_NAME}"
-          
-          # DÉFINIT LE NOM DU FICHIER JAR (crucial pour le Dockerfile)
-          # Assurez-vous que vos builds Maven nomment les fichiers ainsi :
+          # Le nom du JAR doit correspondre à celui que Maven a généré (ex: api-gateway.jar)
           JAR_NAME="${SERVICE_NAME}.jar" 
           
           echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_OUTPUT
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "JAR_NAME=$JAR_NAME" >> $GITHUB_OUTPUT # Export du nom du JAR
+          echo "JAR_NAME=$JAR_NAME" >> $GITHUB_OUTPUT
 
       - name: Build and Push Docker Image for ${{ matrix.service }}
         uses: docker/build-push-action@v5
         with:
-          context: ./${{ matrix.service }}
+          # Le contexte est la racine '.' où le JAR est maintenant extrait
+          context: .
           file: ./${{ matrix.service }}/Dockerfile
           push: true
-          # Passe le nom du JAR en tant qu'argument de construction au Dockerfile
           build-args: |
             JAR_FILE=${{ steps.meta.outputs.JAR_NAME }}
 
@@ -73,20 +110,5 @@ jobs:
             ${{ steps.meta.outputs.IMAGE_NAME }}:${{ steps.meta.outputs.VERSION }}
             ${{ steps.meta.outputs.IMAGE_NAME }}:latest
 
-
-#---
-
-## Résumé et Prochaine Action
-
-             ##Votre dépôt est maintenant configuré avec un pipeline CI/CD complet :
-
-             ##1.  **`ci.yml`** : Lance le build Maven et Node.js sur `main` et crée les artefacts (JARs, `dist`).
-#             2.  **`release-please.yml`** : Gère le versioning automatique et crée un tag (`vX.Y.Z`).
-#             3.  **`deploy-docker.yml`** : Se déclenche sur le tag, télécharge les JARs et pousse les images Docker sur GHCR.
-#
-#  **Dernière vérification :** Pour que le `deploy-docker.yml` fonctionne, assurez-vous que tous vos Dockerfile Java commencent par une ligne similaire à celle-ci pour accepter l'argument du nom du JAR :
-##
-#  ```dockerfile
-#  ARG JAR_FILE
-#...
-#  COPY target/${JAR_FILE} app.jar
+# NOTE: Il faudrait un job similaire pour le frontend (s'il est déployé via Docker)
+# ou un autre job pour un déploiement S3/Cloudflare.
