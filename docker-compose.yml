@@ -1,0 +1,83 @@
+
+services:
+  db:
+    image: mysql:8.0.43
+    container_name: mysql-db-gameStack
+    environment:
+      MYSQL_ROOT_PASSWORD: "${DATASOURCE_ROOT_PASSWORD}"
+      MYSQL_DATABASE: "${DATASOURCE_NAME}"
+      MYSQL_USER: "${DATASOURCE_USERNAME}"
+      MYSQL_PASSWORD: "${DATASOURCE_PASSWORD}"
+    ports:
+      - "3306:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build:
+      context: ./auth-service
+    container_name: gamestack-auth-service
+    environment:
+      SPRING_DATASOURCE_URL: "${DATASOURCE_URL}"
+      SPRING_DATASOURCE_USERNAME: "${DATASOURCE_USERNAME}"
+      SPRING_DATASOURCE_PASSWORD: "${DATASOURCE_PASSWORD}"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  collection-service:
+    build:
+      context: ./collection-service
+    container_name: gamestack-collection-service
+    environment:
+      SPRING_DATASOURCE_URL: "${DATASOURCE_URL}"
+      SPRING_DATASOURCE_USERNAME: "${DATASOURCE_USERNAME}"
+      SPRING_DATASOURCE_PASSWORD: "${DATASOURCE_PASSWORD}"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  games-service:
+    build:
+      context: ./games-service
+    container_name: gamestack-games-service
+    environment:
+      SPRING_DATASOURCE_URL: "${DATASOURCE_URL}"
+      SPRING_DATASOURCE_USERNAME: "${DATASOURCE_USERNAME}"
+      SPRING_DATASOURCE_PASSWORD: "${DATASOURCE_PASSWORD}"
+      RAWG_KEY: "${RAWG_KEY}"
+      RAWG_URL: "${RAWG_URL}"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  gateway-service:
+    build:
+      context: ./api-gateway
+    container_name: gamestack-gateway-service
+    environment:
+      AUTH_SERVICE_URI: "${AUTH_SERVICE_URI}"
+      COLLECTION_SERVICE_URI: "${COLLECTION_SERVICE_URI}"
+      GAMES_SERVICE_URI: "${GAMES_SERVICE_URI}"
+    ports:
+      - "8083:8083"
+    depends_on:
+      - auth-service
+      - collection-service
+      - games-service
+
+
+  vue-service:
+    build:
+      context: ./frontend
+    container_name: gamestack-vue-service
+    ports:
+      - "8084:80"  
+
+volumes:
+  db-data: {}

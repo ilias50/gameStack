@@ -1,0 +1,99 @@
+# Nom du workflow qui apparaîtra dans l'interface GitHub Actions
+name: CI Multi-Service (Build & Test)
+
+# Déclenche ce workflow sur chaque push et pull request sur la branche 'main'
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  # Permet d'exécuter ce workflow manuellement depuis l'interface Actions
+  workflow_dispatch:
+permissions:
+  contents: write # Permet d'écrire des fichiers (nécessaire pour la release)
+  pull-requests: write # Permet de créer et modifier des Pull Requests (critique pour release-please)
+
+# Définition des jobs (tâches) à exécuter
+jobs:
+  # -----------------------------------------------------------
+  # JOB 1: Build et Tests Unitaires pour les services Java (Maven)
+  # -----------------------------------------------------------
+  java_build:
+    name: Build Services Java (Maven)
+    # Exécuter sur la dernière version d'Ubuntu
+    runs-on: ubuntu-latest
+
+    # Les variables d'environnement nécessaires
+    env:
+      # Utiliser Java 21 comme spécifié dans les pom.xml
+      JAVA_VERSION: '21'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          # Cache les dépendances Maven pour accélérer les builds
+          cache: 'maven'
+
+      - name: Run Maven Build and Unit Tests
+        # Exécute le build de tous les modules, saute les tests d'intégration, et nettoie
+        run: mvn clean install
+
+      # NOTE: Si vous avez des tests d'intégration (Testcontainers, etc.) distincts,
+      # vous devrez créer un profil Maven spécifique et un step dédié.
+
+      - name: Upload Build Artifacts (JARs)
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-artifacts
+          # Sauvegarde tous les fichiers JAR générés par les modules
+          path: |
+            **/target/*.jar
+            !**/target/*-sources.jar
+            !**/target/*-javadoc.jar
+
+  # -----------------------------------------------------------
+  # JOB 2: Build du Frontend (Vue/Vite)
+  # -----------------------------------------------------------
+  frontend_build:
+    name: Build Frontend (Node.js)
+    runs-on: ubuntu-latest
+    # Le frontend ne doit s'exécuter que si le build Java a réussi
+    needs: java_build
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          # Cache les dépendances Node.js (node_modules)
+          cache: 'npm'
+          # Chemin vers package-lock.json pour le cache
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Dependencies
+        # Va dans le dossier frontend et installe les dépendances
+        run: npm install
+        working-directory: ./frontend
+
+      - name: Run Frontend Build (Vite)
+        # Exécute la commande de build Vite
+        run: npm run build
+        working-directory: ./frontend
+
+      - name: Upload Frontend Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          # Le dossier de sortie du build Vite
+          path: ./frontend/dist

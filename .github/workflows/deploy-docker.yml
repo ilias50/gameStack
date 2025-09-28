@@ -1,0 +1,91 @@
+name: 2. Docker Deploy to GHCR
+
+# Ce workflow s'exécute uniquement lorsqu'une nouvelle Release est publiée sur GitHub
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  # Nécessaire pour pousser les images sur le GitHub Container Registry (GHCR)
+  packages: write
+
+jobs:
+  # Déploie les services Java (API Gateway, Auth, Collection, Games)
+  deploy_java_services:
+    runs-on: ubuntu-latest
+
+    # Stratégie pour itérer sur tous vos microservices Java
+    strategy:
+      matrix:
+        service: [api-gateway, auth-service, collection-service, games-service]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download Build Artifacts (JARs)
+        # Télécharge les JARs créés par le workflow CI précédent (ci.yml)
+        uses: actions/download-artifact@v4
+        with:
+          name: java-artifacts
+          path: ./
+
+      # --- Configuration Docker/GHCR ---
+      - name: Docker Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set Image Metadata and JAR Name
+        id: meta
+        run: |
+          # Récupère le tag de version (ex: v1.0.0)
+          VERSION=${{ github.event.release.tag_name }}
+          # Nettoie le nom du service pour le nom de l'image Docker (gamestack-auth-service)
+          SERVICE_NAME=$(echo ${{ matrix.service }} | tr '[:upper:]' '[:lower:]')
+          
+          # Définit le nom complet de l'image pour le GHCR
+          IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/gamestack-${SERVICE_NAME}"
+          
+          # DÉFINIT LE NOM DU FICHIER JAR (crucial pour le Dockerfile)
+          # Assurez-vous que vos builds Maven nomment les fichiers ainsi :
+          JAR_NAME="${SERVICE_NAME}.jar" 
+          
+          echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "JAR_NAME=$JAR_NAME" >> $GITHUB_OUTPUT # Export du nom du JAR
+
+      - name: Build and Push Docker Image for ${{ matrix.service }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ./${{ matrix.service }}
+          file: ./${{ matrix.service }}/Dockerfile
+          push: true
+          # Passe le nom du JAR en tant qu'argument de construction au Dockerfile
+          build-args: |
+            JAR_FILE=${{ steps.meta.outputs.JAR_NAME }}
+
+          tags: |
+            ${{ steps.meta.outputs.IMAGE_NAME }}:${{ steps.meta.outputs.VERSION }}
+            ${{ steps.meta.outputs.IMAGE_NAME }}:latest
+
+
+#---
+
+## Résumé et Prochaine Action
+
+             ##Votre dépôt est maintenant configuré avec un pipeline CI/CD complet :
+
+             ##1.  **`ci.yml`** : Lance le build Maven et Node.js sur `main` et crée les artefacts (JARs, `dist`).
+#             2.  **`release-please.yml`** : Gère le versioning automatique et crée un tag (`vX.Y.Z`).
+#             3.  **`deploy-docker.yml`** : Se déclenche sur le tag, télécharge les JARs et pousse les images Docker sur GHCR.
+#
+#  **Dernière vérification :** Pour que le `deploy-docker.yml` fonctionne, assurez-vous que tous vos Dockerfile Java commencent par une ligne similaire à celle-ci pour accepter l'argument du nom du JAR :
+##
+#  ```dockerfile
+#  ARG JAR_FILE
+#...
+#  COPY target/${JAR_FILE} app.jar

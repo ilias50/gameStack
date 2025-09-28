@@ -1,0 +1,54 @@
+----------------------------------------------------------------------
+Fichier .gitignore pour Projet Multi-Module (Java/Maven & Vue/Node.js)
+1. Fichiers et Dossiers Ignorés par les IDE et OS
+###################################################
+
+IntelliJ / IDE
+.idea/
+*.iml
+
+VS Code (settings utilisateur locaux)
+.vscode/
+/frontend/.vscode/
+
+Windows/Mac OS
+Thumbs.db
+.DS_Store
+
+2. Artefacts Java / Maven
+############################
+
+Répertoires de compilation de tous les modules microservices (api-gateway, auth-service, etc.)
+**/target/
+
+Fichiers de log
+*.log
+log/
+
+Fichiers d'archive générés
+*.jar
+*.war
+*.zip
+*.class
+
+Fichiers du wrapper Maven
+.mvn/wrapper/maven-wrapper.jar
+
+3. Frontend (Vue / Vite / Node.js)
+#############################
+
+Le répertoire de dépendances Node.js (dans le module frontend)
+/frontend/node_modules/
+
+Répertoire de build généré par Vite (la sortie de la compilation frontend)
+/frontend/dist/
+
+Fichiers de cache/temporaires
+.npm
+.cache
+.vite-temp/
+
+Fichiers d'environnement locaux (devraient être ignorés par défaut)
+.env
+.env.*.local
+.env.development.local
