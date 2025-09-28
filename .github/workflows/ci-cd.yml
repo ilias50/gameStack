@@ -42,7 +42,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: java-artifacts
-          # IMPORTANT : Upload de tous les JARs nécessaires
           path: |
             **/target/*.jar
             !**/target/*-sources.jar
@@ -98,20 +97,32 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # CORRECTION ARTEFACTS : On télécharge l'artefact dans un dossier temporaire
       - name: Download Java Artifacts
-        id: download
         uses: actions/download-artifact@v4
         with:
           name: java-artifacts
-          path: java-artifacts # Chemin simple, on sait que les JARs sont dedans.
+          path: ./.download-tmp
 
-      - name: Verify Downloaded Artifacts
+      - name: Verify Downloaded Artifacts and Prepare Zip
+        id: prepare_zip
         run: |
-          echo "Listing contents of java-artifacts directory:"
-          ls -R java-artifacts/
+          # Cherche tous les JARs téléchargés, peu importe le sous-dossier créé par download-artifact
+          JAR_FILES=$(find ./.download-tmp -name "*.jar")
+          
+          if [ -z "$JAR_FILES" ]; then
+            echo "::error::No JAR files found in downloaded artifact. Check Job 1 Upload path."
+            exit 1
+          fi
+          
+          # Enregistre la liste des fichiers trouvés
+          echo "JAR_FILES_TO_ZIP=$JAR_FILES" >> $GITHUB_OUTPUT
+          
+          echo "Found the following JARs:"
+          echo "$JAR_FILES"
 
       - name: Install ZIP Utility
-        run: sudo apt-get install unzip -y
+        run: sudo apt-get install zip -y
 
       - name: Run Release Please
         uses: googleapis/release-please-action@v4
@@ -128,8 +139,8 @@ jobs:
           VERSION_TAG=${{ steps.release.outputs.tag_name }}
           ZIP_NAME="java-artifacts-$VERSION_TAG.zip"
           
-          # CORRECTION DÉFINITIVE : Les deux commandes sont sur des lignes séparées
-          zip -j $ZIP_NAME ./java-artifacts/*
+          # Utilise la variable shell contenant la liste des JARs trouvés
+          zip -j $ZIP_NAME ${{ steps.prepare_zip.outputs.JAR_FILES_TO_ZIP }}
           echo "ZIP_FILE=$ZIP_NAME" >> $GITHUB_OUTPUT
 
       # 3. Upload des JARs en tant qu'Assets de la Release
@@ -160,6 +171,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # On télécharge l'artefact créé au Job 1, pour chaque service
       - name: Download Final Release Artifacts (JARs)
         uses: actions/download-artifact@v4
         with:
@@ -169,6 +181,8 @@ jobs:
       - name: Extract Java Artifacts
         run: |
           SERVICE_NAME=$(echo ${{ matrix.service }} | tr '[:upper:]' '[:lower:]')
+          
+          # On cherche le JAR avec la convention de nom de Maven (ex: auth-service-1.0.1.jar)
           JAR_FILE=$(find ./downloaded-jars -name "$SERVICE_NAME*.jar")
           
           if [ -z "$JAR_FILE" ]; then
@@ -176,6 +190,7 @@ jobs:
             exit 1
           fi
           
+          # Copie le JAR trouvé à la racine pour Docker
           cp $JAR_FILE ./${SERVICE_NAME}.jar
           
           rm -rf downloaded-jars
