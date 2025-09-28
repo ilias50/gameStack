@@ -42,7 +42,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: java-artifacts
-          # IMPORTANT : Upload de tous les JARs nécessaires
           path: |
             **/target/*.jar
             !**/target/*-sources.jar
@@ -102,14 +101,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: java-artifacts
-          path: ./.zip-content # Dossier où se trouvent les JARs téléchargés
+          path: ./.zip-content
 
       - name: Verify JARs presence
         run: |
-          # Chercher au moins un JAR dans n'importe quel sous-dossier
           if [ -z "$(find ./.zip-content -name "*.jar" -print -quit)" ]; then
             echo "::error::No JAR files found in ./.zip-content. Deployment aborted."
-            # Affichage pour débogage
             ls -R ./.zip-content
             exit 1
           fi
@@ -133,17 +130,15 @@ jobs:
           VERSION_TAG=${{ steps.release.outputs.tag_name }}
           ZIP_NAME="java-artifacts-$VERSION_TAG.zip"
           
-          # Zippe le contenu du dossier téléchargé, conservant l'arborescence (pour le cas où find a raté)
           zip -r $ZIP_NAME ./.zip-content
           echo "ZIP_FILE=$ZIP_NAME" >> $GITHUB_OUTPUT
 
       # 3. Upload des JARs en tant qu'Assets de la Release
+      # NOTE: Nous avons retiré la ligne 'repo_token' qui causait l'erreur
       - name: Upload Java Artifacts to Release
         if: ${{ steps.release.outputs.release_created }}
         uses: actions/upload-release-asset@v1
         with:
-          # CORRECTION CRITIQUE : Utilisation de l'input `repo_token` au lieu du `token` non reconnu
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
           upload_url: ${{ steps.release.outputs.upload_url }}
           asset_path: ${{ steps.zip_java.outputs.ZIP_FILE }}
           asset_name: ${{ steps.zip_java.outputs.ZIP_FILE }}
@@ -215,7 +210,7 @@ jobs:
           file: ./${{ matrix.service }}/Dockerfile
           push: true
           build-args: |
-            JAR_FILE=${{ steps.meta.outputs.JAR_NAME }}
+            JAR_FILE=${{ steps.meta.outputs.JAR_FILE }}
 
           tags: |
             ${{ steps.meta.outputs.IMAGE_NAME }}:${{ steps.meta.outputs.VERSION }}
