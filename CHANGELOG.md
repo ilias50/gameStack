@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.9](https://github.com/ilias50/gameStack/compare/v1.0.8...v1.0.9) (2025-09-28)
+
+
+### Bug Fixes
+
+* debug workflow change deploy docker10 ([bac2738](https://github.com/ilias50/gameStack/commit/bac27382031be956e60ec03245d68c67a4ee0abb))
+
 ## [1.0.8](https://github.com/ilias50/gameStack/compare/v1.0.7...v1.0.8) (2025-09-28)
 
 
