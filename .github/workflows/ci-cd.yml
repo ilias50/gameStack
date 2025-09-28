@@ -84,58 +84,50 @@ jobs:
           path: ./frontend/dist
 
   # -----------------------------------------------------------
-  # JOB 3: Versioning et Création de Release (Release Please)
+  # JOB 3: Versioning, Release, et Déclenchement du Déploiement
   # -----------------------------------------------------------
   release_and_versioning:
     name: Automated Versioning (Release Please)
     runs-on: ubuntu-latest
 
-    # Ce job DOIT attendre que TOUS les builds et tests réussissent
     needs: [java_build, frontend_build]
 
-    # Condition cruciale: Le versioning ne se fait que sur les pushes vers 'main'
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
-    # CORRECTION CRITIQUE (1) : Donne au GITHUB_TOKEN la permission de déclencher d'autres workflows
     permissions:
       contents: write
       pull-requests: write
-      actions: write
+      actions: write # Autorise l'appel d'API pour le repository_dispatch
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Installer l'utilitaire zip pour archiver les artefacts
       - name: Install Zip Utility
         run: sudo apt-get install zip -y
 
-      # 1. TÉLÉCHARGER les JARs créés par le job java_build
       - name: Download Java Artifacts
         uses: actions/download-artifact@v4
         with:
           name: java-artifacts
           path: ./java-artifacts-to-upload
 
-      # 2. TÉLÉCHARGER le Frontend créé par le job frontend_build
       - name: Download Frontend Artifact
         uses: actions/download-artifact@v4
         with:
           name: frontend-dist
           path: ./frontend-artifacts-to-upload
 
-      # 3. Exécuter Release Please
-      # CORRECTION CRITIQUE (2) : Passer explicitement le GITHUB_TOKEN à l'action
+      # 1. Exécuter Release Please
       - name: Run Release Please
         uses: googleapis/release-please-action@v4
         id: release
         with:
           release-type: simple
-          token: ${{ secrets.GITHUB_TOKEN }} # Assure l'autorisation complète de déclenchement
+          # Passage explicite du token corrigé
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Les étapes suivantes ne s'exécutent que si une NOUVELLE RELEASE est créée (uniquement après un merge de PR de release)
-
-      # 4. ZIP les artefacts (un seul fichier pour l'upload)
+      # Les étapes suivantes ne s'exécutent que si une NOUVELLE RELEASE est créée
       - name: Zip Java Artifacts
         if: ${{ steps.release.outputs.release_created }}
         run: zip -r ./java-artifacts-to-upload/java-artifacts.zip ./java-artifacts-to-upload/
@@ -144,8 +136,7 @@ jobs:
         if: ${{ steps.release.outputs.release_created }}
         run: zip -r ./frontend-artifacts-to-upload/frontend-dist.zip ./frontend-artifacts-to-upload/
 
-      # 5. UPLOAD JAVA (Asset de Release)
-      # On utilise l'URL fournie par Release Please
+      # 2. UPLOAD des Assets
       - name: Upload Java Artifacts to Release
         if: ${{ steps.release.outputs.release_created }}
         uses: actions/upload-release-asset@v1
@@ -157,7 +148,6 @@ jobs:
           asset_name: java-artifacts-${{ steps.release.outputs.tag_name }}.zip
           asset_content_type: application/zip
 
-      # 6. UPLOAD FRONTEND (Asset de Release)
       - name: Upload Frontend Artifact to Release
         if: ${{ steps.release.outputs.release_created }}
         uses: actions/upload-release-asset@v1
@@ -169,9 +159,12 @@ jobs:
           asset_name: frontend-dist-${{ steps.release.outputs.tag_name }}.zip
           asset_content_type: application/zip
 
-      - name: Notify on New Release
+      # 3. DÉCLENCHEMENT DU DÉPLOIEMENT VIA API (repository_dispatch)
+      # Ceci est la solution anti-blocage.
+      - name: Dispatch Deployment Trigger
         if: ${{ steps.release.outputs.release_created }}
-        env:
-          TAG_VERSION: ${{ steps.release.outputs.tag_name }}
-        run: |
-          echo "Nouvelle release créée : $TAG_VERSION"
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }} # Utilise le jeton avec 'actions: write'
+          event-type: trigger_deploy # Nom du déclencheur écouté par le second workflow
+          client-payload: '{"tag_name": "${{ steps.release.outputs.tag_name }}", "repository": "${{ github.repository }}"}'
