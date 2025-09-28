@@ -1,5 +1,5 @@
 # Nom du workflow qui apparaîtra dans l'interface GitHub Actions
-name: CI Multi-Service (Build & Test)
+name: CI/CD Complet (Build, Test, Release & Deploy)
 
 # Déclenche ce workflow sur chaque push et pull request sur la branche 'main'
 on:
@@ -9,11 +9,13 @@ on:
   pull_request:
     branches:
       - main
-  # Permet d'exécuter ce workflow manuellement depuis l'interface Actions
+  # Permet d'exécuter ce workflow manuellement
   workflow_dispatch:
+
 permissions:
-  contents: write # Permet d'écrire des fichiers (nécessaire pour la release)
-  pull-requests: write # Permet de créer et modifier des Pull Requests (critique pour release-please)
+  contents: write # Nécessaire pour checkout, release-please et le tagging
+  pull-requests: write # Nécessaire pour release-please
+  packages: write # Nécessaire pour le push des images Docker vers GHCR
 
 # Définition des jobs (tâches) à exécuter
 jobs:
@@ -23,25 +25,20 @@ jobs:
   java_build:
     name: Build Services Java (Maven)
     runs-on: ubuntu-latest
-
     env:
       JAVA_VERSION: '21'
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
       - name: Setup Java ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
           cache: 'maven'
-
       - name: Run Maven Build and Unit Tests
         run: mvn clean install
-
-      - name: Upload Build Artifacts (JARs)
+      - name: Upload Java Artifacts (JARs)
         uses: actions/upload-artifact@v4
         with:
           name: java-artifacts
@@ -51,32 +48,27 @@ jobs:
             !**/target/*-javadoc.jar
 
   # -----------------------------------------------------------
-  # JOB 2: Build du Frontend (Vue/Vite)
+  # JOB 2: Build du Frontend (Node.js)
   # -----------------------------------------------------------
   frontend_build:
     name: Build Frontend (Node.js)
     runs-on: ubuntu-latest
     needs: java_build
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
-
       - name: Install Dependencies
         run: npm install
         working-directory: ./frontend
-
       - name: Run Frontend Build (Vite)
         run: npm run build
         working-directory: ./frontend
-
       - name: Upload Frontend Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -84,87 +76,135 @@ jobs:
           path: ./frontend/dist
 
   # -----------------------------------------------------------
-  # JOB 3: Versioning, Release, et Déclenchement du Déploiement
+  # JOB 3: Versioning (Release Please) et Préparation des Assets
   # -----------------------------------------------------------
   release_and_versioning:
     name: Automated Versioning (Release Please)
     runs-on: ubuntu-latest
-
+    # Nécessite que tous les builds aient réussi
     needs: [java_build, frontend_build]
 
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
+    # Ce job n'a pas besoin de permissions spéciales (pas de 'actions: write') car le déploiement est interne.
+    # On force l'utilisation du GITHUB_TOKEN pour la création des tags/releases.
     permissions:
       contents: write
       pull-requests: write
-      actions: write # Autorise l'appel d'API pour le repository_dispatch
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install Zip Utility
-        run: sudo apt-get install zip -y
-
+      # 1. Télécharger les artefacts générés par les jobs précédents
       - name: Download Java Artifacts
         uses: actions/download-artifact@v4
         with:
           name: java-artifacts
-          path: ./java-artifacts-to-upload
+          path: java-artifacts-to-upload
 
-      - name: Download Frontend Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-dist
-          path: ./frontend-artifacts-to-upload
+      - name: Install ZIP Utility
+        run: sudo apt-get install zip -y
 
-      # 1. Exécuter Release Please
       - name: Run Release Please
         uses: googleapis/release-please-action@v4
         id: release
         with:
           release-type: simple
-          # Passage explicite du token corrigé
+          # Passage explicite du jeton (non bloquant ici)
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Les étapes suivantes ne s'exécutent que si une NOUVELLE RELEASE est créée
-      - name: Zip Java Artifacts
-        if: ${{ steps.release.outputs.release_created }}
-        run: zip -r ./java-artifacts-to-upload/java-artifacts.zip ./java-artifacts-to-upload/
+      # Le reste de ce job ne s'exécute que si une NOUVELLE release a été créée (nouvelle version)
+      if: ${{ steps.release.outputs.release_created }}
+        
+        # 2. Archiver les JARs pour l'upload
+        - name: Zip Java Artifacts for Release
+          id: zip_java
+          run: |
+            VERSION_TAG=${{ steps.release.outputs.tag_name }}
+            ZIP_NAME="java-artifacts-$VERSION_TAG.zip"
+            # Compresse le contenu du dossier téléchargé
+            zip -j $ZIP_NAME java-artifacts-to-upload/* echo "ZIP_FILE=$ZIP_NAME" >> $GITHUB_OUTPUT
 
-      - name: Zip Frontend Artifact
-        if: ${{ steps.release.outputs.release_created }}
-        run: zip -r ./frontend-artifacts-to-upload/frontend-dist.zip ./frontend-artifacts-to-upload/
+        # 3. Upload des JARs en tant qu'Assets de la Release
+        - name: Upload Java Artifacts to Release
+          uses: actions/upload-release-asset@v1
+          with:
+            upload_url: ${{ steps.release.outputs.upload_url }}
+            asset_path: ${{ steps.zip_java.outputs.ZIP_FILE }}
+            asset_name: ${{ steps.zip_java.outputs.ZIP_FILE }}
+            asset_content_type: application/zip
+            token: ${{ secrets.GITHUB_TOKEN }}
 
-      # 2. UPLOAD des Assets
-      - name: Upload Java Artifacts to Release
-        if: ${{ steps.release.outputs.release_created }}
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # -----------------------------------------------------------
+  # JOB 4: Déploiement Docker (Dépend de la Release)
+  # C'est maintenant une dépendance interne et non un nouveau workflow
+  # -----------------------------------------------------------
+  deploy_java_services:
+    name: Docker Deploy to GHCR
+    runs-on: ubuntu-latest
+    # Le déploiement se fait UNIQUEMENT si la Release a été créée
+    needs: [release_and_versioning]
+    if: ${{ needs.release_and_versioning.outputs.release_created }}
+
+    # Stratégie de déploiement des services
+    strategy:
+      matrix:
+        service: [api-gateway, auth-service, collection-service, games-service]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # --- ÉTAPE CRUCIALE : TÉLÉCHARGEMENT DE L'ARTIFACT ZIP (qui contient les JARs) ---
+      # Puisque nous sommes dans le même run (même si jobs différents), on télécharge l'artifact
+      # temporaire du Job 3, pas l'asset de release.
+      - name: Download Final Release Artifacts (ZIP)
+        uses: actions/download-artifact@v4
         with:
-          upload_url: ${{ steps.release.outputs.upload_url }}
-          asset_path: ./java-artifacts-to-upload/java-artifacts.zip
-          asset_name: java-artifacts-${{ steps.release.outputs.tag_name }}.zip
-          asset_content_type: application/zip
+          name: ${{ needs.release_and_versioning.outputs.zip_file }}
+          path: ./temp-zip-download
 
-      - name: Upload Frontend Artifact to Release
-        if: ${{ steps.release.outputs.release_created }}
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.release.outputs.upload_url }}
-          asset_path: ./frontend-artifacts-to-upload/frontend-dist.zip
-          asset_name: frontend-dist-${{ steps.release.outputs.tag_name }}.zip
-          asset_content_type: application/zip
+      - name: Extract Java Artifacts
+        run: |
+          # Le nom du fichier est celui que le job de release a généré
+          ZIP_FILE=$(find ./temp-zip-download -name "java-artifacts-v*.zip")
+          unzip $ZIP_FILE -d extracted-artifacts
+          
+          # Déplace les JARs à la racine pour Docker
+          mv extracted-artifacts/* .
+          
+          # Nettoyage
+          rm -rf temp-zip-download extracted-artifacts
 
-      # 3. DÉCLENCHEMENT DU DÉPLOIEMENT VIA API (repository_dispatch)
-      # Ceci est la solution anti-blocage.
-      - name: Dispatch Deployment Trigger
-        if: ${{ steps.release.outputs.release_created }}
-        uses: peter-evans/repository-dispatch@v3
+      # --- Configuration Docker/GHCR ---
+      - name: Docker Login to GHCR
+        uses: docker/login-action@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }} # Utilise le jeton avec 'actions: write'
-          event-type: trigger_deploy # Nom du déclencheur écouté par le second workflow
-          client-payload: '{"tag_name": "${{ steps.release.outputs.tag_name }}", "repository": "${{ github.repository }}"}'
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set Image Metadata and JAR Name
+        id: meta
+        run: |
+          # Récupère le tag directement depuis l'output du job de release
+          VERSION=${{ needs.release_and_versioning.outputs.tag_name }}
+          SERVICE_NAME=$(echo ${{ matrix.service }} | tr '[:upper:]' '[:lower:]')
+          IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/gamestack-${SERVICE_NAME}"
+          JAR_NAME="${SERVICE_NAME}.jar" 
+          
+          echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "JAR_NAME=$JAR_NAME" >> $GITHUB_OUTPUT
+
+      - name: Build and Push Docker Image for ${{ matrix.service }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./${{ matrix.service }}/Dockerfile
+          push: true
+          build-args: |
+            JAR_FILE=${{ steps.meta.outputs.JAR_NAME }}
+
+          tags: |
+            ${{ steps.meta.outputs.IMAGE_NAME }}:${{ steps.meta.outputs.VERSION }}
+            ${{ steps.meta.outputs.IMAGE_NAME }}:latest
