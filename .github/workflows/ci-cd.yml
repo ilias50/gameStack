@@ -134,10 +134,12 @@ jobs:
           echo "ZIP_FILE=$ZIP_NAME" >> $GITHUB_OUTPUT
 
       # 3. Upload des JARs en tant qu'Assets de la Release
-      # NOTE: Nous avons retiré la ligne 'repo_token' qui causait l'erreur
       - name: Upload Java Artifacts to Release
         if: ${{ steps.release.outputs.release_created }}
         uses: actions/upload-release-asset@v1
+        # CORRECTION CRITIQUE : Passage du token via l'environnement du step
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.release.outputs.upload_url }}
           asset_path: ${{ steps.zip_java.outputs.ZIP_FILE }}
@@ -210,7 +212,7 @@ jobs:
           file: ./${{ matrix.service }}/Dockerfile
           push: true
           build-args: |
-            JAR_FILE=${{ steps.meta.outputs.JAR_FILE }}
+            JAR_FILE=${{ steps.meta.outputs.JAR_NAME }}
 
           tags: |
             ${{ steps.meta.outputs.IMAGE_NAME }}:${{ steps.meta.outputs.VERSION }}
