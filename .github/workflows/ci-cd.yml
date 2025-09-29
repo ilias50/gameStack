@@ -42,6 +42,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: java-artifacts
+          # IMPORTANT : Upload de tous les JARs nécessaires
           path: |
             **/target/*.jar
             !**/target/*-sources.jar
@@ -146,12 +147,59 @@ jobs:
           asset_content_type: application/zip
 
   # -----------------------------------------------------------
-  # JOB 4: Déploiement Docker (Dépend de la Release)
+  # JOB 4: Déploiement Docker du Frontend (GHCR)
+  # -----------------------------------------------------------
+  frontend_deploy:
+    name: Docker Deploy Frontend to GHCR
+    runs-on: ubuntu-latest
+    needs: [frontend_build, release_and_versioning]
+    if: ${{ needs.release_and_versioning.outputs.release_created }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download Frontend Dist
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: ./frontend/dist
+
+      - name: Docker Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set Image Metadata
+        id: meta
+        run: |
+          VERSION=${{ needs.release_and_versioning.outputs.tag_name }}
+          IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/gamestack-frontend"
+          
+          echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build and Push Docker Image for Frontend
+        uses: docker/build-push-action@v5
+        with:
+          # Le contexte est le répertoire du Dockerfile du frontend
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+
+          tags: |
+            ${{ steps.meta.outputs.IMAGE_NAME }}:${{ steps.meta.outputs.VERSION }}
+            ${{ steps.meta.outputs.IMAGE_NAME }}:latest
+
+  # -----------------------------------------------------------
+  # JOB 5: Déploiement Docker (Services Java)
   # -----------------------------------------------------------
   deploy_java_services:
-    name: Docker Deploy to GHCR
+    name: Docker Deploy Java Services to GHCR
     runs-on: ubuntu-latest
-    needs: [release_and_versioning]
+    needs: [release_and_versioning, frontend_deploy] # Dépend maintenant du frontend aussi
     if: ${{ needs.release_and_versioning.outputs.release_created }}
 
     strategy:
@@ -169,7 +217,6 @@ jobs:
           path: ./downloaded-jars
 
       - name: Extract Java Artifacts
-        # Cette étape copie le JAR à la racine du workspace.
         run: |
           SERVICE_NAME=$(echo ${{ matrix.service }} | tr '[:upper:]' '[:lower:]')
           JAR_FILE=$(find ./downloaded-jars -name "$SERVICE_NAME*.jar" | head -n 1)
@@ -205,7 +252,6 @@ jobs:
       - name: Build and Push Docker Image for ${{ matrix.service }}
         uses: docker/build-push-action@v5
         with:
-          # CORRECTION CRITIQUE: Le contexte doit pointer vers le dossier du service
           context: ./${{ matrix.service }}
           file: ./${{ matrix.service }}/Dockerfile
           push: true
