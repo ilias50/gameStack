@@ -2,6 +2,8 @@
 import { ref, onMounted } from 'vue';
 import { RouterLink } from 'vue-router';
 import CollectionService from '@/services/collectionService';
+// 1. Importez le nouveau composant GameCard
+import GameCard from '@/components/GameCard.vue'; // 👈 Assurez-vous que le chemin est correct !
 
 const userGames = ref([]);
 const isLoading = ref(true);
@@ -21,6 +23,17 @@ const fetchCollection = async () => {
   }
 };
 
+/**
+ * Gère l'événement émis par le composant GameCard lorsque l'utilisateur
+ * clique sur le bouton "Détails".
+ * @param {number} gameId L'ID du jeu passé par l'événement.
+ */
+const handleDetailsClick = (gameId) => {
+  console.log(`Action de navigation vers les détails pour l'ID: ${gameId}`);
+  // 💡 Ici, vous mettriez votre logique pour naviguer (ex: router.push('/games/' + gameId))
+  // ou ouvrir une modale de détails.
+};
+
 onMounted(fetchCollection);
 </script>
 
@@ -37,18 +50,10 @@ onMounted(fetchCollection);
     </div>
 
     <div v-else class="game-list">
-
-      <div v-for="userGame in userGames" :key="userGame.id" class="game-card">
-
-        <img
-            :src="userGame.imagePath || 'default-cover.png'"
-            :alt="userGame.title || 'Couverture inconnue'"
-            class="game-image"
-        >
-        <h3 class="game-name">{{ userGame.title || 'Jeu Inconnu' }}</h3>
-
-        <button class="detail-button">Détails</button>
-      </div>
+      <GameCard
+          v-for="userGame in userGames"
+          :key="userGame.id"
+          :game="userGame"               @details-click="handleDetailsClick" />
     </div>
   </div>
 </template>
@@ -76,15 +81,6 @@ onMounted(fetchCollection);
   justify-content: center;
   margin-top: 30px;
 }
-.game-card {
-  border: 1px solid #ccc;
-  padding: 15px;
-  width: 200px;
-  box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
-}
-.game-image {
-  width: 100%;
-  height: auto;
-  margin-bottom: 10px;
-}
+/* 💡 NOTE : Les styles de .game-card, .game-image et .game-name ont été déplacés
+   dans le fichier GameCard.vue et n'ont plus besoin d'être ici. */
 </style>
