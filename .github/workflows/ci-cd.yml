@@ -137,7 +137,6 @@ jobs:
       - name: Upload Java Artifacts to Release
         if: ${{ steps.release.outputs.release_created }}
         uses: actions/upload-release-asset@v1
-        # CORRECTION CRITIQUE : Passage du token via l'environnement du step
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -170,10 +169,9 @@ jobs:
           path: ./downloaded-jars
 
       - name: Extract Java Artifacts
+        # Cette étape copie le JAR à la racine du workspace.
         run: |
           SERVICE_NAME=$(echo ${{ matrix.service }} | tr '[:upper:]' '[:lower:]')
-          
-          # Cherche le JAR dans le dossier téléchargé (n'importe quel sous-dossier)
           JAR_FILE=$(find ./downloaded-jars -name "$SERVICE_NAME*.jar" | head -n 1)
           
           if [ -z "$JAR_FILE" ]; then
@@ -181,7 +179,6 @@ jobs:
             exit 1
           fi
           
-          # Copie le JAR trouvé à la racine pour Docker
           cp "$JAR_FILE" ./${SERVICE_NAME}.jar
           
           rm -rf downloaded-jars
@@ -208,7 +205,8 @@ jobs:
       - name: Build and Push Docker Image for ${{ matrix.service }}
         uses: docker/build-push-action@v5
         with:
-          context: .
+          # CORRECTION CRITIQUE: Le contexte doit pointer vers le dossier du service
+          context: ./${{ matrix.service }}
           file: ./${{ matrix.service }}/Dockerfile
           push: true
           build-args: |
