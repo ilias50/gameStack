@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.20](https://github.com/ilias50/gameStack/compare/v1.0.19...v1.0.20) (2025-09-29)
+
+
+### Bug Fixes
+
+* add build, test, deploy frontend ([35a6bfd](https://github.com/ilias50/gameStack/commit/35a6bfd099669f832d9b465c0cb5ac3bf78784a6))
+
 ## [1.0.19](https://github.com/ilias50/gameStack/compare/v1.0.18...v1.0.19) (2025-09-29)
 
 
