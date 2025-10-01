@@ -68,7 +68,7 @@ public class AuthService {
         }
 
         // TODO: Implémenter la génération de token JWT
-        String token = "simulated_jwt_for_" + user.getUsername();
+        String token = jwtService.generateToken(user.getUsername(), user.getId());
 
         return AuthResponse.builder()
                 .token(token)
@@ -101,7 +101,7 @@ public class AuthService {
      * Valide la présence et l'authenticité d'un token JWT.
      */
     public boolean validateToken(String token) {
-        // TODO: Implémenter la validation du token JWT
-        return token != null && token.startsWith("simulated_jwt");
+        // Appelle la vraie logique de validation du token
+        return jwtService.isTokenValid(token);
     }
 }

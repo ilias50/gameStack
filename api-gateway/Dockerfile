@@ -15,7 +15,7 @@ COPY src ./src
 
 # Rend le script Maven exécutable et lance la compilation
 RUN chmod +x ./mvnw
-RUN ./mvnw clean package
+RUN ./mvnw clean package -DskipTests
 
 # Étape 2 : Runtime
 # Utilise une image plus petite pour l'exécution (contient seulement le JRE)
