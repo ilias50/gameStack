@@ -7,14 +7,15 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter; // Nécessaire pour ajouter le filtre
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-    private final InternalTokenFilter internalTokenFilter; // Injection du nouveau filtre
+    private final InternalTokenFilter internalTokenFilter;
 
+    // Injection du filtre personnalisé
     public SecurityConfig(InternalTokenFilter internalKeyFilter) {
         this.internalTokenFilter = internalKeyFilter;
     }
@@ -23,23 +24,24 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
+                // Désactiver CSRF et HTTP Basic (inutiles pour une API stateless/JWT)
                 .csrf(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
 
-                // 3. Configurer les règles d'autorisation
+                // 1. Configurer les règles d'autorisation
                 .authorizeHttpRequests(auth -> auth
-                        // Seules les routes de connexion/inscription sont publiques
+                        // 🟢 EXCEPTION CRITIQUE : Seules les routes de connexion/inscription sont publiques
                         .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
 
-                        // TOUTES LES AUTRES routes, y compris /validate, exigent une AUTHENTIFICATION
-                        // Cette authentification sera fournie par le InternalKeyFilter
+                        // TOUTES LES AUTRES routes exigent une AUTHENTIFICATION (via le filtre)
                         .anyRequest().authenticated()
                 )
 
-                // *** CRITIQUE : AJOUT DU FILTRE DE CLÉ STATIQUE ***
-                // Ce filtre vérifiera X-Internal-Secret pour les routes internes comme /validate
+                // 2. Ajouter notre filtre (pour les routes sécurisées après le login)
+                // Ce filtre gère l'authentification des autres requêtes (ex: /validate).
                 .addFilterBefore(internalTokenFilter, UsernamePasswordAuthenticationFilter.class)
 
+                // 3. Gestion de la politique de session (stateless pour JWT)
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 );

@@ -25,6 +25,19 @@ public class InternalTokenFilter extends OncePerRequestFilter {
     @Autowired
     private InternalJwtUtil jwtUtil;
 
+    // 🟢 AJOUT CRITIQUE : Cette méthode définit les chemins que le filtre DOIT ignorer.
+    // Cela permet aux routes .permitAll() de fonctionner sans être bloquées par le filtre.
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        final String path = request.getRequestURI();
+
+        // Assurez-vous que ces chemins correspondent exactement à ceux définis dans SecurityConfig !
+        // J'utilise 'contains' pour la robustesse, mais 'equals' est plus précis si vous n'utilisez pas de chemins dynamiques.
+
+        // Nous excluons /register et /login
+        return path.contains("/api/auth/register") || path.contains("/api/auth/login");
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
@@ -32,8 +45,9 @@ public class InternalTokenFilter extends OncePerRequestFilter {
         final String authHeader = request.getHeader("Authorization");
 
         // 1. VÉRIFICATION DU TOKEN (SÉCURITÉ ASSURÉE ICI)
+        // Ce bloc est maintenant seulement exécuté si shouldNotFilter retourne false.
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            // Le token interne est absent, la requête ne vient pas de la Gateway ou est invalide.
+            // Le token interne est absent et la route n'est pas publique. Blocage.
             response.setStatus(HttpServletResponse.SC_FORBIDDEN); // 403 Forbidden
             return;
         }
@@ -51,20 +65,17 @@ public class InternalTokenFilter extends OncePerRequestFilter {
         String username = claims.getSubject();
         List<GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
 
-        // Création d'un objet Authentication simple
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                 username,
                 Collections.emptyList(),
                 authorities
         );
 
-        // Assurez-vous que le contexte est établi avant de continuer la chaîne
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        // Log de confirmation que l'authentification est réussie
         System.out.println("--- Games Service : Contexte de sécurité établi pour: " + SecurityContextHolder.getContext().getAuthentication().getName());
 
-        // 3. CONTINUER LA CHAÎNE (MAINTENANT QUE LA ROUTE EST public DANS LA CONFIG DE SÉCURITÉ)
+        // 3. CONTINUER LA CHAÎNE
         filterChain.doFilter(request, response);
     }
 }

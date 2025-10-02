@@ -1,10 +1,11 @@
 <script setup>
 import { ref, defineEmits, defineProps } from 'vue';
 
-const email = ref('');
+// 🟢 CORRECTION 1 : Remplacer 'email' par 'username'
+const username = ref('');
 const password = ref('');
 
-// 1. Déclarer la prop 'isLoading' que nous recevons du parent
+// Déclarer la prop 'isLoading'
 const props = defineProps({
   isLoading: {
     type: Boolean,
@@ -15,14 +16,12 @@ const props = defineProps({
 const emit = defineEmits(['submit']);
 
 const handleSubmit = () => {
-  // 2. Vérifier si les champs sont remplis et si l'application n'est PAS en chargement
-  // (Bien que le bouton soit désactivé, c'est une bonne double vérification)
-  if (email.value && password.value && !props.isLoading) {
+  // 🟢 CORRECTION 2 : Utiliser 'username.value'
+  if (username.value && password.value && !props.isLoading) {
 
-    // 3. Émettre l'événement 'submit' avec les données
-    // Le parent (LoginView) gérera le changement d'état de chargement à true/false.
+    // 🟢 CORRECTION 3 : Émettre l'événement 'submit' avec la clé 'username'
     emit('submit', {
-      email: email.value,
+      username: username.value, // Le parent (LoginView) s'attend maintenant à cette clé
       password: password.value
     });
   }
@@ -33,11 +32,11 @@ const handleSubmit = () => {
   <form @submit.prevent="handleSubmit" class="login-form">
 
     <div class="form-group">
-      <label for="email">Email</label>
+      <label for="username">Nom d'utilisateur</label>
       <input
-          id="email"
-          type="email"
-          v-model="email"
+          id="username"
+          type="text"
+          v-model="username"
           required
           :disabled="props.isLoading"
       >
@@ -62,6 +61,9 @@ const handleSubmit = () => {
 </template>
 
 <style scoped>
+/* Les styles sont inchangés, ils restent bons. */
+/* ... (Styles précédents) ... */
+
 .login-form {
   display: flex;
   flex-direction: column;

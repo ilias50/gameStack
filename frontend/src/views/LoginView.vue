@@ -8,21 +8,28 @@ const router = useRouter();
 const errorMessage = ref(null);
 const isLoading = ref(false);
 
+/**
+ * Gère l'événement de soumission du formulaire de connexion.
+ * @param {object} credentials - Contient { username, password }
+ */
+const handleLogin = async ({ username, password }) => {
+  // 🟢 CORRECTION APPLIQUÉE : La variable 'email' est remplacée par 'username'.
+  // Assurez-vous que le composant LoginForm émet maintenant { username, password }.
 
-const handleLogin = async ({ email, password }) => {
   errorMessage.value = null;
   isLoading.value = true;
 
   try {
-    await AuthService.login(email, password);
+    // Appel du service de connexion avec le nom d'utilisateur
+    await AuthService.login(username, password);
 
-    // 🟢 CORRECTION ICI : Redirection vers le nom de route 'library'
+    // Redirection après succès (vers le nom de route 'library')
     router.push({ name: 'library' });
 
   } catch (error) {
-    // ... (Logique de gestion des erreurs inchangée)
-    if (error.status === 401) {
-      errorMessage.value = 'Email ou mot de passe incorrect.';
+    // La gestion des erreurs utilise maintenant "Nom d'utilisateur" au lieu de "Email"
+    if (error.status === 401 || error.message.includes('invalides')) {
+      errorMessage.value = 'Nom d\'utilisateur ou mot de passe incorrect.';
     } else {
       errorMessage.value = 'Une erreur inattendue est survenue. Veuillez réessayer.';
       console.error('Erreur de connexion:', error);
@@ -45,11 +52,12 @@ const handleLogin = async ({ email, password }) => {
         :is-loading="isLoading"
     />
 
-    <p class="hint">Utilisez : <strong>test@example.com</strong> / <strong>password123</strong></p>
+    <p class="hint">Utilisez : <strong>testuser</strong> / <strong>password123</strong></p>
   </div>
 </template>
 
 <style scoped>
+/* Styles inchangés */
 .login-container {
   text-align: center;
   padding: 50px 0;

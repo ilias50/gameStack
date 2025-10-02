@@ -13,15 +13,17 @@ const apiClient = axios.create({
 // Intercepteur de Requête : Ajoute le token JWT ET le X-User-Id
 apiClient.interceptors.request.use(config => {
     const token = localStorage.getItem('user_token');
+    const userId = localStorage.getItem('user_id'); // ⚠️ Assurez-vous d'avoir stocké 'user_id' lors du login
 
     // 1. Gère le Token JWT (pour l'autorisation)
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // 2. 🟢 INJECTION MANUELLE DE L'ID UTILISATEUR (Pour débloquer le collection-service)
-    // Utilisez un ID valide dans votre DB, si vous en avez un.
-    config.headers['X-User-Id'] = '1';
+    // 2. 🟢 Injection dynamique de l'ID UTILISATEUR
+    if (userId) {
+        config.headers['X-User-Id'] = userId;
+    }
 
     return config;
 }, error => {

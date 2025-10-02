@@ -11,7 +11,10 @@ spring:
           globalcors:
             cors-configurations:
               '[/**]':
-                allowedOriginPatterns: "*"
+                # 🟢 Indiquer l'origine exacte du front-end
+                allowedOrigins: "http://localhost:8084"
+                # Alternative si vous voulez autoriser toutes les origines (moins sécurisé) :
+                # allowedOriginPatterns: "*"
                 allowedMethods:
                   - GET
                   - POST

@@ -9,14 +9,10 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.List;
-
-import static org.springframework.security.config.Customizer.withDefaults;
-
+// ❌ RETRAIT : Plus besoin des imports CORS (CorsConfigurationSource, UrlBasedCorsConfigurationSource, etc.)
+// ❌ RETRAIT : Plus besoin de l'import static withDefaults
+// import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
 @EnableWebSecurity
@@ -33,13 +29,14 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(withDefaults())
+                // ❌ RETRAIT : Supprimer l'appel à la configuration CORS
+                // .cors(withDefaults())
 
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 // *** CRITIQUE : PERMET L'ACCÈS À TOUS POUR BYPASSER LE FILTRE D'AUTORISATION ***
                 .authorizeHttpRequests(auth -> auth
-                        // La sécurité est assurée par InternalTokenFilter, ce filtre est juste un passe-tout.
+                        // La sécurité est assurée par InternalTokenFilter.
                         .requestMatchers("/api/collections/**").permitAll()
                         .anyRequest().authenticated()
                 )
@@ -48,18 +45,5 @@ public class SecurityConfig {
                 .addFilterBefore(internalTokenFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(true);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
     }
 }
