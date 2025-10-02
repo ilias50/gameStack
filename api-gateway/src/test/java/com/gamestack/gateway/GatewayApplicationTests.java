@@ -9,6 +9,7 @@ import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWeb
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.cloud.gateway.route.RouteLocator;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Flux;
@@ -35,6 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 )
 // Désactive Eureka (Service Discovery) pour le test
 @TestPropertySource(properties = "spring.cloud.discovery.enabled=false")
+@ActiveProfiles("test")
 @AutoConfigureWebTestClient
 class GatewayApplicationTests {
     // ... (Le reste du corps des tests est correct) ...
