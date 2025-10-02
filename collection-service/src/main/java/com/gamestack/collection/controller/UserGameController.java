@@ -1,5 +1,6 @@
 package com.gamestack.collection.controller;
 
+import com.gamestack.collection.dto.PlatformResponseDto;
 import com.gamestack.collection.dto.UserGameRequestDto;
 import com.gamestack.collection.dto.UserGameResponseDto;
 import com.gamestack.collection.model.UserGame;
@@ -125,6 +126,35 @@ public class UserGameController {
             System.err.println("Error removing game from collection: " + e.getMessage());
             e.printStackTrace();
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+    * Récupère la liste complète des plateformes.
+    * Le chemin est défini par @RequestMapping("/api/collections") + @GetMapping("/platforms").
+    *
+    * @return ResponseEntity avec la liste des DTO de plateformes.
+    */
+    @GetMapping("/platforms")
+    public ResponseEntity<List<PlatformResponseDto>> getAllPlatforms() {
+        try {
+               // Dans un cas réel, vous utiliseriez un PlatformService:
+               // List<PlatformResponseDto> platforms = platformService.findAllPlatforms();
+
+                // Ici, pour l'exemple, on suppose une méthode dans le UserGameService
+                // ou un service dédié qui retourne les plateformes.
+                List<PlatformResponseDto> platforms = userGameService.findAllPlatforms();
+
+                if (platforms.isEmpty()) {
+                    // Retourne 204 No Content si la liste est vide (bonne pratique pour une liste vide)
+                    return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+                }
+
+                return new ResponseEntity<>(platforms, HttpStatus.OK);
+        } catch (Exception e) {
+                System.err.println("Error fetching all platforms: " + e.getMessage());
+                e.printStackTrace();
+                return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 }

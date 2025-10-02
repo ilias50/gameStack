@@ -1,5 +1,6 @@
 package com.gamestack.collection.service;
 
+import com.gamestack.collection.dto.PlatformResponseDto;
 import com.gamestack.collection.dto.UserGameResponseDto;
 import com.gamestack.collection.model.Game;
 import com.gamestack.collection.model.Platform;
@@ -106,5 +107,26 @@ public class UserGameService {
     @Transactional
     public void removeGameFromCollection(Long userId, Long gameId) {
         userGameRepository.deleteByUserIdAndGameId(userId, gameId);
+    }
+    /**
+     * Récupère toutes les entités Platform et les mappe en PlatformResponseDto.
+     * * @return La liste de toutes les plateformes au format DTO.
+     */
+    @Transactional(readOnly = true) // Bonne pratique pour les requêtes de lecture
+    public List<PlatformResponseDto> findAllPlatforms() {
+        // 1. Récupérer toutes les entités Platform depuis la base de données
+        List<Platform> platforms = platformRepository.findAll();
+
+        // 2. Mapper chaque entité Platform en PlatformResponseDto
+        return platforms.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Méthode privée utilitaire pour mapper l'entité Platform vers le DTO.
+     */
+    private PlatformResponseDto convertToDto(Platform platform) {
+        return new PlatformResponseDto(platform.getId(), platform.getName());
     }
 }

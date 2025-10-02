@@ -1,9 +1,12 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRouter } from 'vue-router'; // Import de useRouter pour la navigation
 import CollectionService from '@/services/collectionService';
-// 1. Importez le nouveau composant GameCard
-import GameCard from '@/components/GameCard.vue'; // 👈 Assurez-vous que le chemin est correct !
+import GameCard from '@/components/GameCard.vue'; // Composant de carte
+import NavBar from '@/components/NavBar.vue'; // Composant de navigation
+
+// Initialisation du routeur pour les actions de navigation
+const router = useRouter();
 
 const userGames = ref([]);
 const isLoading = ref(true);
@@ -14,9 +17,10 @@ const fetchCollection = async () => {
   error.value = null;
   try {
     // Appel réel à l'endpoint GET /collections/games
-    userGames.value = await CollectionService.getUserCollection();
+    const data = await CollectionService.getUserCollection();
+    userGames.value = data; // Assurez-vous que le service retourne un tableau
   } catch (err) {
-    error.value = 'Impossible de charger votre bibliothèque. Vérifiez la console pour plus de détails.';
+    error.value = 'Impossible de charger votre bibliothèque. Veuillez réessayer plus tard.';
     console.error("Erreur de récupération de la collection:", err);
   } finally {
     isLoading.value = false;
@@ -25,21 +29,24 @@ const fetchCollection = async () => {
 
 /**
  * Gère l'événement émis par le composant GameCard lorsque l'utilisateur
- * clique sur le bouton "Détails".
+ * clique sur le bouton "Détails" et navigue vers la page de détails.
  * @param {number} gameId L'ID du jeu passé par l'événement.
  */
 const handleDetailsClick = (gameId) => {
-  console.log(`Action de navigation vers les détails pour l'ID: ${gameId}`);
-  // 💡 Ici, vous mettriez votre logique pour naviguer (ex: router.push('/games/' + gameId))
-  // ou ouvrir une modale de détails.
+  console.log(`Navigation vers les détails pour l'ID: ${gameId}`);
+  // 💡 Assurez-vous d'avoir une route '/games/:id' configurée dans votre router.js
+  router.push(`/games/${gameId}`);
 };
 
+// Exécuter la fonction de chargement au montage du composant
 onMounted(fetchCollection);
 </script>
 
 <template>
   <div class="library-view">
-    <h1>Ma Bibliothèque de Jeux</h1>
+    <NavBar />
+
+    <h1>Ma Bibliothèque de Jeux 🎮</h1>
 
     <div v-if="isLoading" class="loading-message">Chargement de votre collection...</div>
 
@@ -53,7 +60,8 @@ onMounted(fetchCollection);
       <GameCard
           v-for="userGame in userGames"
           :key="userGame.id"
-          :game="userGame"               @details-click="handleDetailsClick" />
+          :game="userGame"
+          @details-click="handleDetailsClick" />
     </div>
   </div>
 </template>
@@ -63,16 +71,25 @@ onMounted(fetchCollection);
   text-align: center;
   padding: 20px;
 }
+h1 {
+  margin-bottom: 40px;
+}
 .loading-message, .alert {
   padding: 20px;
   margin: 20px auto;
   border-radius: 8px;
   max-width: 600px;
+  font-weight: bold;
 }
 .alert.info {
   background-color: #e2f4ff;
   border: 1px solid #b3e0ff;
   color: #004085;
+}
+.alert.error {
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
 }
 .game-list {
   display: flex;
@@ -81,6 +98,4 @@ onMounted(fetchCollection);
   justify-content: center;
   margin-top: 30px;
 }
-/* 💡 NOTE : Les styles de .game-card, .game-image et .game-name ont été déplacés
-   dans le fichier GameCard.vue et n'ont plus besoin d'être ici. */
 </style>

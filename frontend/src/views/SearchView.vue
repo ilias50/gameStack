@@ -1,9 +1,9 @@
 <script setup>
-// ... (le script Vue reste inchangé)
 import { ref } from 'vue';
 import GamesService from '@/services/gamesService';
 import CollectionService from '@/services/collectionService';
-import GameCard from '@/components/GameCard.vue'; // Assurez-vous que le chemin est correct !
+import GameCard from '@/components/GameCard.vue'; // Composant de carte
+import NavBar from '@/components/NavBar.vue'; // 👈 NOUVEL IMPORT
 
 const searchQuery = ref('');
 const searchResults = ref([]);
@@ -48,6 +48,7 @@ const addToCollection = async (game) => {
     await CollectionService.addGameToCollection(gameDto);
     alert(`${game.title} a été ajouté à votre collection !`);
 
+    // Met à jour la propriété pour indiquer que le jeu est ajouté
     game.isAdded = true;
 
   } catch (error) {
@@ -61,6 +62,8 @@ const addToCollection = async (game) => {
 
 <template>
   <div class="search-view">
+    <NavBar />
+
     <h1>Rechercher et Ajouter des Jeux</h1>
 
     <div class="search-form">
@@ -80,27 +83,27 @@ const addToCollection = async (game) => {
     <div v-else class="results-grid">
       <div v-for="game in searchResults" :key="game.apiId" class="result-card-container">
 
-        <GameCard :game="game" class="extended-card" /> <button
-          @click="addToCollection(game)"
-          class="add-button"
-          :disabled="game.isAdding || game.isAdded"
-      >
-        <span v-if="game.isAdded">Ajouté ✅</span>
-        <span v-else-if="game.isAdding">Ajout en cours...</span>
-        <span v-else>Ajouter à la bibliothèque</span>
-      </button>
+        <GameCard :game="game" class="extended-card" />
+        <button
+            @click="addToCollection(game)"
+            class="add-button"
+            :disabled="game.isAdding || game.isAdded"
+        >
+          <span v-if="game.isAdded">Ajouté ✅</span>
+          <span v-else-if="game.isAdding">Ajout en cours...</span>
+          <span v-else>Ajouter à la bibliothèque</span>
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* ... (Les styles de recherche et alerte restent inchangés) */
+/* Les styles restent inchangés... */
 .search-view {
   text-align: center;
   padding: 20px;
 }
-/* ... */
 .loading, .alert {
   padding: 20px;
   margin: 20px auto;
