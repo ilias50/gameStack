@@ -22,15 +22,15 @@ spring:
                 allowCredentials: true
           routes:
             - id: games_route
-              uri: ${GAMES_SERVICE_URI}
+              uri: ${GAMES_SERVICE_URI:lb://GAMES-SERVICE}
               predicates:
                 - Path=/api/games/**
             - id: collections_route
-              uri: ${COLLECTION_SERVICE_URI}
+              uri: ${COLLECTION_SERVICE_URI:lb://COLLECTION-SERVICE}
               predicates:
                 - Path=/api/collections/**
             - id: auth_route
-              uri: ${AUTH_SERVICE_URI}
+              uri: ${AUTH_SERVICE_URI:lb://AUTH-SERVICE}
               predicates:
                 - Path=/api/auth/**
 
