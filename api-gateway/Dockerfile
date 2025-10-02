@@ -13,9 +13,13 @@ COPY mvnw .
 COPY pom.xml .
 COPY src ./src
 
+ENV GAMES_SERVICE_URI=lb://games-service
+ENV COLLECTION_SERVICE_URI=lb://collection-service
+ENV AUTH_SERVICE_URI=lb://auth-service
+
 # Rend le script Maven exécutable et lance la compilation
 RUN chmod +x ./mvnw
-RUN ./mvnw clean package -DskipTests
+RUN ./mvnw clean package
 
 # Étape 2 : Runtime
 # Utilise une image plus petite pour l'exécution (contient seulement le JRE)
