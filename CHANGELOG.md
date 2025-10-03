@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/ilias50/gameStack/compare/v1.1.0...v1.2.0) (2025-10-03)
+
+
+### Features
+
+* ajout de la logique auth et front de base ([9f6ef3e](https://github.com/ilias50/gameStack/commit/9f6ef3edf9063ab6464294041870f61b6174cf60))
+
 ## [1.0.20](https://github.com/ilias50/gameStack/compare/v1.0.19...v1.0.20) (2025-09-29)
 
 
