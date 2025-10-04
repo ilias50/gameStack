@@ -1,12 +1,12 @@
 <template>
   <div class="library-game-card-container">
-
     <div class="game-display" @click="$emit('details-click', game.id)">
       <img :src="game.imagePath" :alt="game.title" class="game-image" />
       <div class="game-info">
         <h3 class="game-name">{{ game.title }}</h3>
-        <p v-if="game.platform && game.platform.id !== 1" class="game-platform">
-          Plateforme : {{ game.platform.name }}
+
+        <p v-if="game.platform" class="game-platform">
+          Plateforme : {{ game.platform }}
         </p>
         <p v-else class="game-platform-none">
           Plateforme indéfinie

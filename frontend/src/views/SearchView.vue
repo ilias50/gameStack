@@ -90,7 +90,7 @@ const handleAddToCollection = async ({ game, platformId }) => {
       releaseDate: game.releaseDate,
       imagePath: game.imagePath,
       // Le platformId est l'ID réel choisi, ou 1 (indéfini) par défaut.
-      platform: platformId
+      platformId: platformId
     };
 
     await CollectionService.addGameToCollection(gameDto);
@@ -110,18 +110,6 @@ const handleAddToCollection = async ({ game, platformId }) => {
 };
 </script>
 
-You're very close! The reason your page doesn't show up at all is because your main content (the NavBar, h1, and search-form) is being excluded by the Vue conditional logic (v-if/v-else-if/v-else).
-
-Your template applies the first v-if directly to the div that contains only the result/loading messages, but it excludes the header and search form.
-
-The content that should always be visible (NavBar, h1, search-form) must be placed before the conditional blocks.
-
-The Fix: Restructure the Template in SearchView.vue
-The key is to move the navigation bar, title, and search form outside of the v-if/v-else-if/v-else chain.
-
-Here is the corrected template for your SearchView.vue file:
-
-Extrait de code
 
 <template>
   <div class="search-view">

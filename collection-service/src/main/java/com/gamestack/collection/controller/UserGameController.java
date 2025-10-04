@@ -75,6 +75,8 @@ public class UserGameController {
                     requestDto.getPlatformId() // ID numérique
             );
 
+            System.out.println("jeux = " + requestDto.getTitle() + "platform = " + requestDto.getPlatformId());
+
 
             return new ResponseEntity<>(savedGame, HttpStatus.CREATED);
 
@@ -119,6 +121,13 @@ public class UserGameController {
                 userId = Long.parseLong(userIdHeader);
             }
             List<UserGameResponseDto> userGames = userGameService.getUserGames(userId);
+            for(UserGameResponseDto userGame : userGames) {
+                System.out.printf("userGame id: %d\n", userGame.getId());
+                System.out.println(userGame.getTitle());
+                System.out.println(userGame.getReleaseDate());
+                System.out.println(userGame.getImagePath());
+                System.out.println(userGame.getPlatform());
+            }
             return new ResponseEntity<>(userGames, HttpStatus.OK);
         } catch (NumberFormatException e) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);

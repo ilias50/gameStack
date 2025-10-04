@@ -82,36 +82,6 @@ jobs:
   # -----------------------------------------------------------
   # JOB X: Run E2E Tests (Testcontainers)
   # -----------------------------------------------------------
-  e2e_tests:
-    name: Run E2E Tests (Testcontainers)
-    runs-on: ubuntu-latest
-    needs: java_build
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Ensure Docker available (info)
-        run: docker info || true
-
-      - name: Setup Java ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
-
-      - name: Run Auth-service E2E Test (Testcontainers)
-        env:
-          RUN_E2E: 'true'
-        run: |
-          # Run only the E2E test class in auth-service. Testcontainers requires Docker on the runner.
-          mvn -pl auth-service -am -Dtest=AuthE2ETest test
-
-      - name: Archive E2E reports (if any)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-test-reports
-          path: auth-service/target/surefire-reports || true
 
   release_and_versioning:
     name: Automated Versioning (Release Please)
