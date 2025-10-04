@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.1](https://github.com/ilias50/gameStack/compare/v1.2.0...v1.2.1) (2025-10-04)
+
+
+### Bug Fixes
+
+* amelioration securite backend et visuel frontend ([4dd40a9](https://github.com/ilias50/gameStack/commit/4dd40a9b530f1854a2abe7efce291737bce495f2))
+* amelioration securite backend et visuel frontend ([7e6e5cc](https://github.com/ilias50/gameStack/commit/7e6e5cc9c5ad72126ef2c1ef0f5e23c06fbd54d2))
+* test auth ([223c2a0](https://github.com/ilias50/gameStack/commit/223c2a00e10e39e360ec95592d09f6673f2b674f))
+
 ## [1.2.0](https://github.com/ilias50/gameStack/compare/v1.1.0...v1.2.0) (2025-10-03)
 
 
