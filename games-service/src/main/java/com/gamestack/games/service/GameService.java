@@ -1,15 +1,11 @@
 package com.gamestack.games.service;
 
 import com.gamestack.games.dto.RawgResponse;
-import com.gamestack.games.model.Game;
-import com.gamestack.games.repository.GameRepository;
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
-import java.util.Optional;
 
 /**
  * Service pour interagir avec l'API RAWG et la base de données locale.
@@ -24,7 +20,6 @@ public class GameService {
     private String rawgApiKey;
 
     private WebClient webClient;
-    private final GameRepository gameRepository;
     private final WebClient.Builder webClientBuilder;
 
     /**
@@ -32,9 +27,8 @@ public class GameService {
      * @param builder le constructeur WebClient fourni par Spring.
      * @param gameRepository le repository pour les opérations de base de données.
      */
-    public GameService(WebClient.Builder builder, @Autowired GameRepository gameRepository) {
+    public GameService(WebClient.Builder builder) {
         this.webClientBuilder = builder;
-        this.gameRepository = gameRepository;
     }
     
     /**
@@ -53,23 +47,14 @@ public class GameService {
      * @return un Mono contenant la réponse de l'API RAWG.
      */
     public Mono<RawgResponse> searchGames(String query) {
-        // Recherche dans la base de données locale
-        Optional<Game> localGame = Optional.ofNullable(gameRepository.findByTitleContainingIgnoreCase(query).stream().findFirst().orElse(null));
-
-        if (localGame.isPresent()) {
-            // Le jeu est dans la base de données locale, on peut le traiter ici
-            System.out.println("Jeu trouvé dans la base de données locale !");
-            return Mono.empty();
-        } else {
-            // Le jeu n'est pas dans la base de données, on interroge l'API RAWG
-            return webClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/games")
-                            .queryParam("key", rawgApiKey)
-                            .queryParam("search", query)
-                            .build())
-                    .retrieve()
-                    .bodyToMono(RawgResponse.class);
-        }
+    // Toujours interroger l'API RAWG (ne pas renvoyer les données locales)
+    return webClient.get()
+        .uri(uriBuilder -> uriBuilder
+            .path("/games")
+            .queryParam("key", rawgApiKey)
+            .queryParam("search", query)
+            .build())
+        .retrieve()
+        .bodyToMono(RawgResponse.class);
     }
 }

@@ -1,11 +1,10 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { RouterLink, useRouter } from 'vue-router'; // Import de useRouter pour la navigation
+import { RouterLink, useRouter } from 'vue-router';
 import CollectionService from '@/services/collectionService';
-import GameCard from '@/components/GameCard.vue'; // Composant de carte
-import NavBar from '@/components/NavBar.vue'; // Composant de navigation
+import LibraryGameCard from '@/components/LibraryGameCard.vue'; // 💡 Rendu clair de l'import
+import NavBar from '@/components/NavBar.vue';
 
-// Initialisation du routeur pour les actions de navigation
 const router = useRouter();
 
 const userGames = ref([]);
@@ -16,9 +15,8 @@ const fetchCollection = async () => {
   isLoading.value = true;
   error.value = null;
   try {
-    // Appel réel à l'endpoint GET /collections/games
     const data = await CollectionService.getUserCollection();
-    userGames.value = data; // Assurez-vous que le service retourne un tableau
+    userGames.value = data;
   } catch (err) {
     error.value = 'Impossible de charger votre bibliothèque. Veuillez réessayer plus tard.';
     console.error("Erreur de récupération de la collection:", err);
@@ -28,17 +26,35 @@ const fetchCollection = async () => {
 };
 
 /**
- * Gère l'événement émis par le composant GameCard lorsque l'utilisateur
- * clique sur le bouton "Détails" et navigue vers la page de détails.
+ * Gère l'événement de suppression émis par LibraryGameCard.
+ * @param {number} gameId L'ID du jeu à supprimer.
+ */
+const handleRemoveClick = async (gameId) => {
+  if (confirm("Êtes-vous sûr de vouloir supprimer ce jeu de votre collection ?")) {
+    try {
+      // Logique de suppression via le service
+      await CollectionService.removeGameFromCollection(gameId);
+
+      // Mise à jour de la liste sans recharger toute la page
+      userGames.value = userGames.value.filter(game => game.id !== gameId);
+      alert("Jeu supprimé avec succès !");
+
+    } catch (err) {
+      console.error("Erreur lors de la suppression:", err);
+      alert("Échec de la suppression du jeu. Veuillez vérifier la console.");
+    }
+  }
+};
+
+/**
+ * Gère le clic sur le composant entier pour les détails.
  * @param {number} gameId L'ID du jeu passé par l'événement.
  */
 const handleDetailsClick = (gameId) => {
   console.log(`Navigation vers les détails pour l'ID: ${gameId}`);
-  // 💡 Assurez-vous d'avoir une route '/games/:id' configurée dans votre router.js
   router.push(`/games/${gameId}`);
 };
 
-// Exécuter la fonction de chargement au montage du composant
 onMounted(fetchCollection);
 </script>
 
@@ -57,16 +73,17 @@ onMounted(fetchCollection);
     </div>
 
     <div v-else class="game-list">
-      <GameCard
+      <LibraryGameCard
           v-for="userGame in userGames"
           :key="userGame.id"
           :game="userGame"
-          @details-click="handleDetailsClick" />
-    </div>
+          @details-click="handleDetailsClick"
+          @remove-click="handleRemoveClick" /> </div>
   </div>
 </template>
 
 <style scoped>
+/* Les styles restent les mêmes */
 .library-view {
   text-align: center;
   padding: 20px;

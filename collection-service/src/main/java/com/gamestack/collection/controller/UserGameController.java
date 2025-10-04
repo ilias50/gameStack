@@ -1,5 +1,6 @@
 package com.gamestack.collection.controller;
 
+import com.gamestack.collection.config.HeaderConstants;
 import com.gamestack.collection.dto.PlatformResponseDto;
 import com.gamestack.collection.dto.UserGameRequestDto;
 import com.gamestack.collection.dto.UserGameResponseDto;
@@ -7,9 +8,13 @@ import com.gamestack.collection.model.UserGame;
 import com.gamestack.collection.service.UserGameService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid; // Ajout pour la validation du DTO
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -17,8 +22,9 @@ import java.util.List;
 @RequestMapping("/api/collections")
 public class UserGameController {
 
+    private static final Logger log = LoggerFactory.getLogger(UserGameController.class);
+
     private final UserGameService userGameService;
-    // Suppression de GameRepository car toute la logique de persistance est dans le service
 
     @Autowired
     public UserGameController(UserGameService userGameService) {
@@ -39,12 +45,25 @@ public class UserGameController {
             @Valid @RequestBody UserGameRequestDto requestDto,
             HttpServletRequest request) {
         try {
-            // Récupère l'ID utilisateur à partir du header X-User-Id
-            String userIdHeader = request.getHeader("X-User-Id");
-            if (userIdHeader == null) {
-                return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            // Try to read authenticated principal from SecurityContext (set by InternalTokenFilter)
+            Long userId = null;
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getName() != null) {
+                try {
+                    userId = Long.parseLong(auth.getName());
+                } catch (NumberFormatException ignored) {
+                    // will try header fallback
+                }
             }
-            Long userId = Long.parseLong(userIdHeader);
+
+            if (userId == null) {
+                // Fallback to header (for backward compatibility)
+                String userIdHeader = request.getHeader(HeaderConstants.X_USER_ID);
+                if (userIdHeader == null) {
+                    return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+                }
+                userId = Long.parseLong(userIdHeader);
+            }
 
             // Appel au service avec l'ID local du jeu et l'ID de la plateforme
             UserGame savedGame = userGameService.addGameToCollection(
@@ -70,8 +89,7 @@ public class UserGameController {
             // Catché si le jeu est déjà présent (doublon)
             return new ResponseEntity<>(HttpStatus.CONFLICT);
         } catch (Exception e) {
-            System.err.println("Error adding game to collection: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Error adding game to collection: {}", e.getMessage(), e);
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -85,18 +103,27 @@ public class UserGameController {
     @GetMapping("/games")
     public ResponseEntity<List<UserGameResponseDto>> getUserCollection(HttpServletRequest request) {
         try {
-            String userIdHeader = request.getHeader("X-User-Id");
-            if (userIdHeader == null) {
-                return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            Long userId = null;
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getName() != null) {
+                try {
+                    userId = Long.parseLong(auth.getName());
+                } catch (NumberFormatException ignored) {
+                }
             }
-            Long userId = Long.parseLong(userIdHeader);
+            if (userId == null) {
+                String userIdHeader = request.getHeader(HeaderConstants.X_USER_ID);
+                if (userIdHeader == null) {
+                    return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+                }
+                userId = Long.parseLong(userIdHeader);
+            }
             List<UserGameResponseDto> userGames = userGameService.getUserGames(userId);
             return new ResponseEntity<>(userGames, HttpStatus.OK);
         } catch (NumberFormatException e) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
-            System.err.println("Error fetching user collection: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Error fetching user collection: {}", e.getMessage(), e);
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -113,18 +140,27 @@ public class UserGameController {
             @PathVariable Long gameId,
             HttpServletRequest request) {
         try {
-            String userIdHeader = request.getHeader("X-User-Id");
-            if (userIdHeader == null) {
-                return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            Long userId = null;
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getName() != null) {
+                try {
+                    userId = Long.parseLong(auth.getName());
+                } catch (NumberFormatException ignored) {
+                }
             }
-            Long userId = Long.parseLong(userIdHeader);
+            if (userId == null) {
+                String userIdHeader = request.getHeader(HeaderConstants.X_USER_ID);
+                if (userIdHeader == null) {
+                    return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+                }
+                userId = Long.parseLong(userIdHeader);
+            }
             userGameService.removeGameFromCollection(userId, gameId);
             return new ResponseEntity<>(HttpStatus.OK);
         } catch (NumberFormatException e) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
-            System.err.println("Error removing game from collection: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Error removing game from collection: {}", e.getMessage(), e);
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

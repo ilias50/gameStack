@@ -6,6 +6,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
@@ -21,6 +23,8 @@ import java.util.List;
 @Component
 public class InternalTokenFilter extends OncePerRequestFilter {
 
+    private static final Logger log = LoggerFactory.getLogger(InternalTokenFilter.class);
+
     @Autowired
     private InternalJwtUtil jwtUtil;
 
@@ -28,7 +32,7 @@ public class InternalTokenFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        final String authHeader = request.getHeader("Authorization");
+        final String authHeader = request.getHeader(HeaderConstants.AUTHORIZATION);
 
         // 1. VÉRIFICATION DU TOKEN (SÉCURITÉ ASSURÉE ICI)
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -61,7 +65,7 @@ public class InternalTokenFilter extends OncePerRequestFilter {
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         // Log de confirmation que l'authentification est réussie
-        System.out.println("--- Games Service : Contexte de sécurité établi pour: " + SecurityContextHolder.getContext().getAuthentication().getName());
+        log.debug("Contexte de sécurité établi pour: {}", SecurityContextHolder.getContext().getAuthentication().getName());
 
         // 3. CONTINUER LA CHAÎNE (MAINTENANT QUE LA ROUTE EST public DANS LA CONFIG DE SÉCURITÉ)
         filterChain.doFilter(request, response);

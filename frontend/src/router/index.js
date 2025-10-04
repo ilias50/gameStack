@@ -1,8 +1,9 @@
-import { createRouter, createWebHistory } from 'vue-router'; // Plus besoin de HomeView
-import LibraryView from '../views/LibraryView.vue'; // Nouvelle vue Bibliothèque
+import { createRouter, createWebHistory } from 'vue-router';
+import LibraryView from '../views/LibraryView.vue';
 import SearchView from '../views/SearchView.vue';
 import LoginView from "@/views/LoginView.vue";
 import AuthService from "@/services/authService.js";
+import RegisterView from "@/views/RegisterView.vue";
 // Nouvelle vue Recherche
 
 const router = createRouter({
@@ -13,13 +14,13 @@ const router = createRouter({
             redirect: '/login'
         },
         {
-            path: '/library', // Nouvelle route principale
+            path: '/library',
             name: 'library',
             component: LibraryView,
             meta: { requiresAuth: true }
         },
         {
-            path: '/search', // Route pour la recherche
+            path: '/search',
             name: 'search',
             component: SearchView,
             meta: { requiresAuth: true }
@@ -29,19 +30,25 @@ const router = createRouter({
             name: 'login',
             component: LoginView,
             meta: { requiresAuth: false }
+        },
+        {
+            path: '/register',
+            name: 'register',
+            component: RegisterView,
+            meta: { requiresAuth: false }
         }
     ]
 });
 
-// **Ajustement de la Garde de Navigation pour la nouvelle route 'library'**
+
 router.beforeEach((to, from, next) => {
     const requiresAuth = to.meta.requiresAuth;
     const isAuthenticated = AuthService.isLoggedIn();
 
     if (requiresAuth && !isAuthenticated) {
         next({ name: 'login' });
-    } else if (isAuthenticated && to.name === 'login') {
-        // Redirection vers la 'library' après login si l'utilisateur est déjà connecté
+    } else if (isAuthenticated && (to.name === 'login' || to.name === 'register')) {
+        // Redirection vers la 'library' si l'utilisateur est déjà connecté et essaie de se connecter/s'inscrire
         next({ name: 'library' });
     } else {
         next();

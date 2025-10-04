@@ -44,6 +44,24 @@ class CollectionService {
             throw error;
         }
     }
+
+    // --- NOUVELLE MÉTHODE ---
+
+    /**
+     * Récupère la liste complète des plateformes disponibles.
+     * Appelle l'endpoint GET /collections/platforms.
+     */
+    async getAllPlatforms() {
+        try {
+            const response = await apiClient.get('/collections/platforms');
+            // Le backend peut retourner un statut 204 No Content si la liste est vide.
+            // On s'assure de retourner un tableau vide si les données sont nulles.
+            return response.data || [];
+        } catch (error) {
+            console.error("Erreur lors de la récupération des plateformes:", error);
+            throw error;
+        }
+    }
 }
 
 export default new CollectionService();

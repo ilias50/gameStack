@@ -32,12 +32,16 @@ public class Game {
     @Column(name = "platform")
     private String platform;
 
+    @Column(name = "platform_id")
+    private Long platformId;
+
     // N'oubliez pas de mettre à jour le constructeur aussi pour qu'il utilise Long !
-    public Game(Long apiId, String title, String releaseDate, String imagePath, String platform) {
+    public Game(Long apiId, String title, String releaseDate, String imagePath, String platform, long platformId) {
         this.apiId = apiId;
         this.title = title;
         this.releaseDate = releaseDate;
         this.imagePath = imagePath;
         this.platform = platform;
+        this.platformId = platformId;
     }
 }

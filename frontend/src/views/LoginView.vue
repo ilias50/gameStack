@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, RouterLink } from 'vue-router'; // 👈 Import de RouterLink
 import LoginForm from '@/components/LoginForm.vue';
 import AuthService from '@/services/authService';
 
@@ -13,21 +13,14 @@ const isLoading = ref(false);
  * @param {object} credentials - Contient { username, password }
  */
 const handleLogin = async ({ username, password }) => {
-  // 🟢 CORRECTION APPLIQUÉE : La variable 'email' est remplacée par 'username'.
-  // Assurez-vous que le composant LoginForm émet maintenant { username, password }.
-
   errorMessage.value = null;
   isLoading.value = true;
 
   try {
-    // Appel du service de connexion avec le nom d'utilisateur
     await AuthService.login(username, password);
-
-    // Redirection après succès (vers le nom de route 'library')
     router.push({ name: 'library' });
 
   } catch (error) {
-    // La gestion des erreurs utilise maintenant "Nom d'utilisateur" au lieu de "Email"
     if (error.status === 401 || error.message.includes('invalides')) {
       errorMessage.value = 'Nom d\'utilisateur ou mot de passe incorrect.';
     } else {
@@ -53,6 +46,11 @@ const handleLogin = async ({ username, password }) => {
     />
 
     <p class="hint">Utilisez : <strong>testuser</strong> / <strong>password123</strong></p>
+
+    <p class="register-link">
+      Pas encore de compte ?
+      <RouterLink to="/register">S'inscrire ici</RouterLink>
+    </p>
   </div>
 </template>
 
@@ -75,5 +73,8 @@ const handleLogin = async ({ username, password }) => {
   margin-top: 20px;
   font-size: 0.9em;
   color: #6c757d;
+}
+.register-link {
+  margin-top: 15px;
 }
 </style>

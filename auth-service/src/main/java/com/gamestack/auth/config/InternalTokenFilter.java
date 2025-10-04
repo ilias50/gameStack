@@ -34,8 +34,8 @@ public class InternalTokenFilter extends OncePerRequestFilter {
         // Assurez-vous que ces chemins correspondent exactement à ceux définis dans SecurityConfig !
         // J'utilise 'contains' pour la robustesse, mais 'equals' est plus précis si vous n'utilisez pas de chemins dynamiques.
 
-        // Nous excluons /register et /login
-        return path.contains("/api/auth/register") || path.contains("/api/auth/login");
+    // Nous excluons /register, /login et /validate (ces endpoints utilisent le token CLIENT)
+    return path.contains("/api/auth/register") || path.contains("/api/auth/login") || path.contains("/api/auth/validate");
     }
 
     @Override
