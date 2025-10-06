@@ -19,8 +19,8 @@ INSERT INTO platforms (name) VALUES
 
 -- Consoles Nintendo (Salon)
 ('Nintendo Switch'),
-('Wii U'),
-('Wii'),
+('Nintendo Wii U'),
+('Nintendo Wii'),
 ('Nintendo GameCube'),
 ('Nintendo 64'),
 ('Super Nintendo Entertainment System (SNES)'),
@@ -29,9 +29,9 @@ INSERT INTO platforms (name) VALUES
 -- Consoles Nintendo (Portable)
 ('Nintendo 3DS'),
 ('Nintendo DS'),
-('Game Boy Advance'),
-('Game Boy Color'),
-('Game Boy'),
+('Nintendo Game Boy Advance'),
+('Nintendo Game Boy Color'),
+('Nintendo Game Boy'),
 
 -- Consoles Sony (Portable)
 ('PlayStation Vita'),
