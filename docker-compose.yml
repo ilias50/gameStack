@@ -29,6 +29,8 @@ services:
       JWT_USER_SECRET_KEY: "${JWT_USER_SECRET_KEY}"
       JWT_USER_EXPIRATION: "${JWT_USER_EXPIRATION}"
       JWT_INTERNAL_SECRET_KEY: "${JWT_INTERNAL_SECRET_KEY}"
+    expose:
+      - "8080"
     depends_on:
       db:
         condition: service_healthy
@@ -42,6 +44,8 @@ services:
       SPRING_DATASOURCE_USERNAME: "${DATASOURCE_USERNAME}"
       SPRING_DATASOURCE_PASSWORD: "${DATASOURCE_PASSWORD}"
       JWT_INTERNAL_SECRET_KEY: "${JWT_INTERNAL_SECRET_KEY}"
+    expose:
+      - "8080"
     depends_on:
       db:
         condition: service_healthy
@@ -57,6 +61,8 @@ services:
       RAWG_KEY: "${RAWG_KEY}"
       RAWG_URL: "${RAWG_URL}"
       JWT_INTERNAL_SECRET_KEY: "${JWT_INTERNAL_SECRET_KEY}"
+    expose:
+      - "8080"
     depends_on:
       db:
         condition: service_healthy
@@ -72,8 +78,8 @@ services:
       JWT_USER_SECRET_KEY: "${JWT_USER_SECRET_KEY}"
       JWT_INTERNAL_SECRET_KEY: "${JWT_INTERNAL_SECRET_KEY}"
       JWT_INTERNAL_EXPIRATION: "${JWT_INTERNAL_EXPIRATION}"
-    expose:
-      - 8083
+    ports:
+      - "8083:8083"
     depends_on:
       - auth-service
       - collection-service

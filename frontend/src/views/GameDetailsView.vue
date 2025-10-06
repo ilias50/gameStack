@@ -9,11 +9,6 @@
     <div v-else-if="gameDetails">
       <h1>{{ gameDetails.name }}</h1>
 
-      <!-- Le bouton affiche l'état isInCollection pour le débogage -->
-      <button @click="logDetails" class="debug-btn">
-        Afficher les données brutes dans la console (Collection: {{ isInCollection ? 'Oui' : 'Non' }})
-      </button>
-
       <!-- NOUVELLE POSITION DU SYNOPSIS : Pleine largeur sous le titre -->
       <div class="synopsis-section">
         <h2>Description</h2>

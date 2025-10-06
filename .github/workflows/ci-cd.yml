@@ -265,3 +265,58 @@ jobs:
           tags: |
             ${{ steps.meta.outputs.IMAGE_NAME }}:${{ steps.meta.outputs.VERSION }}
             ${{ steps.meta.outputs.IMAGE_NAME }}:latest
+
+  # -----------------------------------------------------------
+  # JOB 6: Déploiement Final sur le Serveur via SSH
+  # -----------------------------------------------------------
+  server_update:
+    name: Activer la Mise à Jour sur le Serveur (SSH)
+    runs-on: ubuntu-latest
+    # Ce job dépend du succès de tous les déploiements Docker précédents
+    needs: [deploy_java_services, frontend_deploy]
+    # S'exécute SEULEMENT si une nouvelle release a été créée et si les déploiements Docker ont réussi
+    if: ${{ needs.release_and_versioning.outputs.release_created }}
+
+    env:
+      SSH_USER: deploy_user # 👈 À remplacer par votre utilisateur de déploiement
+      SSH_HOST: votre-serveur.com # 👈 À remplacer par l'IP ou le FQDN de votre serveur
+      DOCKER_COMPOSE_PATH: /home/deploy_user/gamestack/ # 👈 Le chemin où se trouve votre fichier docker-compose.yml sur le serveur
+
+    steps:
+      # 1. Configuration de l'agent SSH avec la clé privée (stockée en secret)
+      - name: Configurer l'agent SSH avec la clé privée
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          # Utilise le secret créé à l'Étape 3 du guide précédent
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # 2. Ajout de l'hôte du serveur aux hôtes connus (pour éviter les avertissements SSH)
+      - name: Ajouter l'hôte du serveur aux hôtes connus
+        run: |
+          # Ajoute l'hôte aux known_hosts pour la première connexion sécurisée
+          ssh-keyscan ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      # 3. Exécution des commandes de mise à jour Docker à distance
+      - name: Exécuter le Déploiement Docker à distance
+        run: |
+          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} '
+            echo "Connexion SSH réussie au serveur..."
+          
+            # 1. Naviguer vers le répertoire du docker-compose
+            cd ${{ env.DOCKER_COMPOSE_PATH }}
+          
+            # 2. Récupérer les nouvelles images (pull)
+            echo "Récupération des nouvelles images Docker depuis GHCR..."
+            docker compose pull
+          
+            # 3. Mettre à jour les conteneurs (up -d)
+            # Cette commande arrête et recrée les conteneurs dont l\'image a changé.
+            echo "Mise à jour des services (docker compose up -d)..."
+            docker compose up -d
+          
+            # 4. Nettoyage des anciennes images (Optionnel mais recommandé)
+            echo "Nettoyage des images Docker non utilisées..."
+            docker image prune -f
+          
+            echo "Déploiement final terminé avec succès."
+          '
