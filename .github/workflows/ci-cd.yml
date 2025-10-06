@@ -307,12 +307,12 @@ jobs:
           
             # 2. Récupérer les nouvelles images (pull)
             echo "Récupération des nouvelles images Docker depuis GHCR..."
-            docker compose pull
+            docker-compose pull
           
             # 3. Mettre à jour les conteneurs (up -d)
             # Cette commande arrête et recrée les conteneurs dont l\'image a changé.
             echo "Mise à jour des services (docker compose up -d)..."
-            docker compose up -d
+            docker-compose up -d
           
             # 4. Nettoyage des anciennes images (Optionnel mais recommandé)
             echo "Nettoyage des images Docker non utilisées..."
