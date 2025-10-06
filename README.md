@@ -1,4 +1,8 @@
-# GameStack — Guide d'exécution (français)
+Lien du site: http://51.21.131.204:8084
+Lien du github: https://github.com/ilias50/gameStack
+
+
+# GameStack — Guide d'exécution
 
 Ce dépôt contient une application multi-modules Java (Spring Boot) + frontend (Vite + Vue) pour un petit service de gestion de collections de jeux.
 
