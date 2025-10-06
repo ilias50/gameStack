@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/ilias50/gameStack/compare/v1.2.1...v1.3.0) (2025-10-06)
+
+
+### Features
+
+* ajout detail jeux trailler proxy inversé ([232d070](https://github.com/ilias50/gameStack/commit/232d070b4b85568a436f6e6b18f41c14d80e4b9a))
+
 ## [1.2.1](https://github.com/ilias50/gameStack/compare/v1.2.0...v1.2.1) (2025-10-04)
 
 
