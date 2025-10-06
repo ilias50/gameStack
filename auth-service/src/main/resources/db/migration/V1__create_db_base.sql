@@ -55,5 +55,3 @@ INSERT INTO status (status_name) VALUES
 ('On Hold'),
 ('Dropped'),
 ('Plan to Play');
-
-INSERT INTO users (username, password_hash) VALUES ('test_user', 'hashed_password123');
