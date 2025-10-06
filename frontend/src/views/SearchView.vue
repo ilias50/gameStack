@@ -97,7 +97,7 @@ const handleAddToCollection = async ({ game, platformId }) => {
 
     // Message d'alerte ajusté pour afficher "indéfinie" si platformId est 1
     const platformMsg = platformId === 1 ? 'Plateforme indéfinie' : `Plateforme ID: ${platformId}`;
-    alert(`${game.title} a été ajouté à votre collection ! (${platformMsg})`);
+
 
     gameToUpdate.isAdded = true;
 
