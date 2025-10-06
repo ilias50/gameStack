@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.7](https://github.com/ilias50/gameStack/compare/v1.3.6...v1.3.7) (2025-10-06)
+
+
+### Bug Fixes
+
+* dajustement front ([86ad705](https://github.com/ilias50/gameStack/commit/86ad705856a82aa7e29ae87caa02f41dddef78ee))
+
 ## [1.3.6](https://github.com/ilias50/gameStack/compare/v1.3.5...v1.3.6) (2025-10-06)
 
 
