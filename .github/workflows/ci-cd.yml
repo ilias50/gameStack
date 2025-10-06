@@ -278,9 +278,9 @@ jobs:
     if: ${{ needs.release_and_versioning.outputs.release_created }}
 
     env:
-      SSH_USER: deploy_user # 👈 À remplacer par votre utilisateur de déploiement
-      SSH_HOST: votre-serveur.com # 👈 À remplacer par l'IP ou le FQDN de votre serveur
-      DOCKER_COMPOSE_PATH: /home/deploy_user/gamestack/ # 👈 Le chemin où se trouve votre fichier docker-compose.yml sur le serveur
+      SSH_USER: ec2-user # 👈 À remplacer par votre utilisateur de déploiement
+      SSH_HOST: 51.21.131.204 # 👈 À remplacer par l'IP ou le FQDN de votre serveur
+      DOCKER_COMPOSE_PATH: /home/ec2-user/ # 👈 Le chemin où se trouve votre fichier docker-compose.yml sur le serveur
 
     steps:
       # 1. Configuration de l'agent SSH avec la clé privée (stockée en secret)
