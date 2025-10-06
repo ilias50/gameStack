@@ -4,6 +4,7 @@ import SearchView from '../views/SearchView.vue';
 import LoginView from "@/views/LoginView.vue";
 import AuthService from "@/services/authService.js";
 import RegisterView from "@/views/RegisterView.vue";
+import GameDetailsView from "@/views/GameDetailsView.vue";
 // Nouvelle vue Recherche
 
 const router = createRouter({
@@ -18,6 +19,12 @@ const router = createRouter({
             name: 'library',
             component: LibraryView,
             meta: { requiresAuth: true }
+        },
+        {
+            path: '/games/:id', // L'ID RAWG sera accessible via route.params.id
+            name: 'game-details',
+            component: GameDetailsView,
+            meta: { requiresAuth: true } // L'accès aux détails de la collection nécessite l'authentification
         },
         {
             path: '/search',

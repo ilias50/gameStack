@@ -72,8 +72,8 @@ services:
       JWT_USER_SECRET_KEY: "${JWT_USER_SECRET_KEY}"
       JWT_INTERNAL_SECRET_KEY: "${JWT_INTERNAL_SECRET_KEY}"
       JWT_INTERNAL_EXPIRATION: "${JWT_INTERNAL_EXPIRATION}"
-    ports:
-      - "8083:8083"
+    expose:
+      - 8083
     depends_on:
       - auth-service
       - collection-service
@@ -85,7 +85,11 @@ services:
       context: ./frontend
     container_name: gamestack-vue-service
     ports:
-      - "8084:80"  
+      - "8084:80"
+    environment:
+      BACKEND_URL: http://localhost:8083
+    depends_on:
+      - gateway-service
 
 volumes:
   db-data: {}

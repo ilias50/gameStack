@@ -202,4 +202,39 @@ public class UserGameController {
                 return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+    /**
+     * Met à jour la plateforme d'un jeu spécifique dans la collection de l'utilisateur.
+     * Utilise l'ID de l'entrée UserGame.
+     *
+     * @param userGameId L'ID de l'entrée UserGame à mettre à jour.
+     * @param platformId Le nouvel ID de la Platform, passé dans le corps de la requête.
+     * @return ResponseEntity avec l'objet UserGame mis à jour.
+     */
+    @PutMapping("/games/{userGameId}/platform")
+    public ResponseEntity<UserGame> updateGamePlatform(
+            @PathVariable Long userGameId,
+            @RequestBody Long platformId) {
+
+        if (platformId == null) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+
+        try {
+            UserGame updatedGame = userGameService.updateUserGamePlatform(userGameId, platformId);
+            return new ResponseEntity<>(updatedGame, HttpStatus.OK);
+
+        } catch (IllegalArgumentException e) {
+            // Catché si UserGame ou la nouvelle Platform n'est pas trouvée.
+            log.warn("Update failed for UserGame ID {}: {}", userGameId, e.getMessage());
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        } catch (IllegalStateException e) {
+            // Catché si la nouvelle combinaison (userId/game/platform) existe déjà (doublon).
+            log.warn("Update failed for UserGame ID {}: {}", userGameId, e.getMessage());
+            return new ResponseEntity<>(HttpStatus.CONFLICT);
+        } catch (Exception e) {
+            log.error("Error updating game platform for ID {}: {}", userGameId, e.getMessage(), e);
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }

@@ -1,10 +1,10 @@
 // src/services/apiClient.js (MODIFICATION CRITIQUE)
 import axios from 'axios';
 
-const baseURL = import.meta.env.VITE_APP_API_URL;
+const baseURL = import.meta.env.VITE_APP_API_URL + '/api';
 
 const apiClient = axios.create({
-    baseURL: baseURL,
+    baseURL: '/api',
     headers: {
         'Content-Type': 'application/json',
     },

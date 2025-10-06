@@ -7,7 +7,7 @@ const USER_ID_KEY = 'user_id';
 
 // Instance d'Axios SANS l'intercepteur de token/ID pour les requêtes d'Auth
 const authApi = axios.create({
-    baseURL: AUTH_BASE_URL,
+    baseURL: '/api/auth',
     headers: {
         'Content-Type': 'application/json',
     },

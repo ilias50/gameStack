@@ -62,6 +62,24 @@ class CollectionService {
             throw error;
         }
     }
+
+    /**
+     * Met à jour la plateforme d'un jeu spécifique dans la collection de l'utilisateur.
+     * Appelle l'endpoint PUT /collections/games/{userGameId}/platform.
+     */
+    async updateGamePlatform(userGameId, newPlatformId) {
+        try {
+            // Le nouvel ID de plateforme est envoyé directement dans le corps de la requête (RequestBody)
+            const response = await apiClient.put(
+                `/collections/games/${userGameId}/platform`,
+                newPlatformId
+            );
+            return response.data;
+        } catch (error) {
+            console.error(`Erreur lors de la mise à jour de la plateforme du jeu ${userGameId}:`, error);
+            throw error;
+        }
+    }
 }
 
 export default new CollectionService();
