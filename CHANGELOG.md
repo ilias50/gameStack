@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.4](https://github.com/ilias50/gameStack/compare/v1.3.3...v1.3.4) (2025-10-06)
+
+
+### Bug Fixes
+
+* debug job deploy ([e65cfb9](https://github.com/ilias50/gameStack/commit/e65cfb9b207370a21cf5bd5ab876a74b0b418675))
+
 ## [1.3.3](https://github.com/ilias50/gameStack/compare/v1.3.2...v1.3.3) (2025-10-06)
 
 
