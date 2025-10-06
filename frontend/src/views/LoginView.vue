@@ -45,7 +45,6 @@ const handleLogin = async ({ username, password }) => {
         :is-loading="isLoading"
     />
 
-    <p class="hint">Utilisez : <strong>testuser</strong> / <strong>password123</strong></p>
 
     <p class="register-link">
       Pas encore de compte ?
