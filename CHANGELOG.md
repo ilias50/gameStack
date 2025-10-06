@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.8](https://github.com/ilias50/gameStack/compare/v1.3.7...v1.3.8) (2025-10-06)
+
+
+### Bug Fixes
+
+* modif readme ([e166201](https://github.com/ilias50/gameStack/commit/e166201f3a127282ee7305b4b3e41a495a54ebba))
+
 ## [1.3.7](https://github.com/ilias50/gameStack/compare/v1.3.6...v1.3.7) (2025-10-06)
 
 
